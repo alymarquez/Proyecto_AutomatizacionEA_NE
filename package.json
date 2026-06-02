@@ -7,8 +7,14 @@
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^13.5.0",
+    "@tiptap/extension-bullet-list": "^3.23.6",
+    "@tiptap/extension-list-item": "^3.23.6",
+    "@tiptap/extension-ordered-list": "^3.23.6",
+    "@tiptap/react": "^3.23.6",
+    "@tiptap/starter-kit": "^3.23.6",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
+    "react-router-dom": "^7.16.0",
     "react-scripts": "5.0.1",
     "web-vitals": "^2.1.4"
   },
@@ -35,5 +41,10 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.5.0",
+    "postcss": "^8.5.15",
+    "tailwindcss": "^3.4.17"
   }
 }
