@@ -1,4 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
+import AddEvento from "../forms/AddEvento";
+import EditEvento from "../forms/EditEvento";
+
 import {
   CalendarDays,
   ChevronLeft,
@@ -11,7 +14,8 @@ import {
   MessageSquare,
   Sparkles,
   CheckCircle2,
-  RefreshCw
+  RefreshCw,
+  PencilLine
 } from "lucide-react";
 
 const COLORES_PASTEL = {
@@ -25,12 +29,20 @@ const COLORES_PASTEL = {
 function CalendarioAsistentes() {
   const [data, setData] = useState({ comisiones_fijas: [], agenda_semanal: [] });
   const [loading, setLoading] = useState(true);
-  const [isSyncing, setIsSyncing] = useState(false); // Estado para la animación de refresh
+  const [isSyncing, setIsSyncing] = useState(false);
   
   const [fechaActual, setFechaActual] = useState(new Date());
   const [diaSeleccionado, setDiaSeleccionado] = useState(new Date());
 
-  // 🌟 FUNCIÓN DE CARGA / SINCRONIZACIÓN (Soporta llamadas repetidas sin reiniciar loaders molestos)
+  const [asistentes, setAsistentes] = useState([]);
+  const [comisiones, setComisiones] = useState([]);
+  const [tutorias, setTutorias] = useState([]);
+
+  const [showModal, setShowModal] = useState(false);
+
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [eventoEditar, setEventoEditar] = useState(null);
+
   const cargarAgenda = useCallback((mostrarLoaderPrincipal = false) => {
     if (mostrarLoaderPrincipal) setLoading(true);
     else setIsSyncing(true);
@@ -45,6 +57,9 @@ function CalendarioAsistentes() {
         });
         setLoading(false);
         setIsSyncing(false);
+        setAsistentes(resData.asistentes || []);
+        setComisiones(resData.comisiones || []);
+        setTutorias(resData.tutorias || []);
       })
       .catch((error) => {
         console.error("Error cargando el calendario organizativo:", error);
@@ -53,12 +68,11 @@ function CalendarioAsistentes() {
       });
   }, []);
 
-  // 🌟 EFECTO DE SINCRONIZACIÓN AUTOMÁTICA EN BACKGROUND (Polling de 30 segundos)
   useEffect(() => {
-    cargarAgenda(true); // Carga inicial con loader completo
+    cargarAgenda(true);
 
     const intervalo = setInterval(() => {
-      cargarAgenda(false); // Sincroniza silenciosamente cada 30 segundos
+      cargarAgenda(false);
     }, 30000);
 
     return () => clearInterval(intervalo);
@@ -172,7 +186,6 @@ function CalendarioAsistentes() {
           </div>
 
           <div className="flex items-center gap-1.5">
-            {/* 🌟 BOTÓN SINCRONIZAR MANUAL */}
             <button 
               onClick={() => cargarAgenda(false)}
               disabled={isSyncing}
@@ -183,7 +196,7 @@ function CalendarioAsistentes() {
             </button>
 
             <button 
-              onClick={() => alert("Funcionalidad de agregar evento próximamente")}
+              onClick={() => setShowModal(true)}
               className="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-3.5 py-2 rounded-lg transition shadow-xs flex items-center gap-1.5 active:scale-95"
             >
               <Plus className="w-4 h-4" />
@@ -193,7 +206,7 @@ function CalendarioAsistentes() {
         </div>
       </div>
 
-      {/* LEYENDA */}
+      {/* EVENTOS */}
       <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-[11px] font-bold text-slate-500 mb-5 px-1 border-b border-slate-100 pb-3">
         <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-xs bg-purple-400" /> Tutoría</span>
         <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-xs bg-blue-400" /> Comisión</span>
@@ -202,7 +215,7 @@ function CalendarioAsistentes() {
         <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-xs bg-slate-400" /> Otro</span>
       </div>
 
-      {/* CONTENEDOR MULTICOLUMNA */}
+      {/* CONTENEDOR COLUMNAS */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         
         {/* CALENDARIO */}
@@ -274,11 +287,11 @@ function CalendarioAsistentes() {
           </div>
         </div>
 
-        {/* DETALLES LATERALES */}
+        {/* DETALLES SIDEBAR */}
         <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-2xs flex flex-col justify-between min-h-[380px]">
           <div>
             <div className="border-b border-slate-100 pb-3 mb-4">
-              <span className="text-[9px] uppercase font-bold text-slate-400 tracking-wider block mb-0.5">Asistencias diarias</span>
+              <span className="text-[9px] uppercase font-bold text-slate-400 tracking-wider block mb-0.5">Actividades del día</span>
               <h2 className="text-sm font-black text-slate-700 capitalize flex items-center gap-1.5">
                 {diaSeleccionado.toLocaleDateString("es-AR", { weekday: 'long', day: 'numeric', month: 'short' })}
               </h2>
@@ -291,13 +304,31 @@ function CalendarioAsistentes() {
                   const config = COLORES_PASTEL[tipoLimpio] || COLORES_PASTEL.otro;
                   return (
                     <div key={idx} className="p-3 bg-slate-50/60 rounded-xl border border-slate-150 relative space-y-2">
+                      
+                      {/* HEADER DE LA TARJETA */}
                       <div className="flex items-center justify-between gap-2">
-                        <h4 className="text-xs font-black text-slate-800 truncate">{ev.titulo || "Reunión General"}</h4>
-                        <span className={`text-[9px] px-2 py-0.5 font-bold rounded-full border shrink-0 capitalize ${config.bg} ${config.text} ${config.border}`}>
-                          {ev.tipo}
-                        </span>
+                        <h4 className="text-xs font-black text-slate-800 truncate pr-2">{ev.titulo || "Reunión General"}</h4>
+                        
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className={`text-[9px] px-2 py-0.5 font-bold rounded-full border capitalize ${config.bg} ${config.text} ${config.border}`}>
+                            {ev.tipo}
+                          </span>
+                          
+                          {/* BOTÓN EDITAR */}
+                          <button
+                            onClick={() => {
+                              setEventoEditar(ev);
+                              setShowEditModal(true);
+                            }}
+                            title="Editar evento"
+                            className="p-1 bg-white hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 border border-slate-200/60 hover:border-indigo-200 rounded-lg shadow-3xs transition active:scale-90"
+                          >
+                            <PencilLine className="w-3 h-3" />
+                          </button>
+                        </div>
                       </div>
 
+                      {/* CUERPO DE LA TARJETA */}
                       <div className="space-y-1.5 text-[11px] text-slate-500 font-medium">
                         <div className="flex items-center gap-1.5">
                           <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
@@ -308,7 +339,6 @@ function CalendarioAsistentes() {
                           <span>Aula: <strong className="text-slate-700">{ev.aula || "Virtual / Meet"}</strong></span>
                         </div>
                         
-                        {/* Mapeos relacionales */}
                         {ev.docente && (
                           <div className="flex items-center gap-1.5 border-t border-slate-150 pt-1.5 mt-1.5 text-[10px]">
                             <User className="w-3 h-3 text-slate-400" />
@@ -329,6 +359,7 @@ function CalendarioAsistentes() {
                           </div>
                         )}
                       </div>
+
                     </div>
                   );
                 })
@@ -342,11 +373,37 @@ function CalendarioAsistentes() {
 
           <div className="pt-3 border-t border-slate-100 text-center flex items-center justify-center gap-1 text-[10px] font-bold text-slate-400">
             <Sparkles className="w-3 h-3 text-indigo-400" />
-            <span>NE / CADU · Calendario Operativo</span>
+            <span>NE / CADU · Calendario Organizativo</span>
           </div>
         </div>
 
       </div>
+
+      {/* MODALES */}
+      <AddEvento
+        open={showModal}
+        onClose={() => setShowModal(false)}
+        onSuccess={() => {
+          cargarAgenda(false);
+          setShowModal(false);
+        }}
+        asistentes={asistentes}
+        comisiones={comisiones}
+        tutorias={tutorias}
+      />
+
+      <EditEvento
+        open={showEditModal}
+        evento={eventoEditar}
+        asistentes={asistentes}
+        comisiones={comisiones}
+        tutorias={tutorias}
+        onClose={() => setShowEditModal(false)}
+        onSuccess={() => {
+          cargarAgenda(false);
+          setShowEditModal(false);
+        }}
+      />
     </div>
   );
 }
