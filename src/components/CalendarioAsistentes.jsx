@@ -1,4 +1,5 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
+import { useApp } from "../context/AppContext";
 import AddEvento from "../forms/AddEvento";
 import EditEvento from "../forms/EditEvento";
 
@@ -27,56 +28,40 @@ const COLORES_PASTEL = {
 };
 
 function CalendarioAsistentes() {
-  const [data, setData] = useState({ comisiones_fijas: [], agenda_semanal: [] });
-  const [loading, setLoading] = useState(true);
+  // Extraemos todo el set de datos globales y la función de refresh del Contexto
+  const { 
+    agenda, 
+    asistentes, 
+    comisiones, 
+    tutorias, 
+    loading, 
+    refreshDatos 
+  } = useApp();
+
   const [isSyncing, setIsSyncing] = useState(false);
   
   const [fechaActual, setFechaActual] = useState(new Date());
   const [diaSeleccionado, setDiaSeleccionado] = useState(new Date());
 
-  const [asistentes, setAsistentes] = useState([]);
-  const [comisiones, setComisiones] = useState([]);
-  const [tutorias, setTutorias] = useState([]);
-
   const [showModal, setShowModal] = useState(false);
-
   const [showEditModal, setShowEditModal] = useState(false);
   const [eventoEditar, setEventoEditar] = useState(null);
 
-  const cargarAgenda = useCallback((mostrarLoaderPrincipal = false) => {
-    if (mostrarLoaderPrincipal) setLoading(true);
-    else setIsSyncing(true);
+  // Botón manual de sincronizar
+  const handleSincronizarManual = async () => {
+    setIsSyncing(true);
+    await refreshDatos(true);
+    setIsSyncing(false);
+  };
 
-    fetch("https://script.google.com/macros/s/AKfycbxqjX-3Z2B6bzE95F8Wc-4QU8lvS9K15XnQmI-2cdCXtKiYsnVJ8MfBdbBaZumVLM9R4A/exec")
-      .then((res) => res.json())
-      .then((resData) => {
-        const agendaMapeada = resData.agenda || resData.agenda_semanal || [];
-        setData({
-          comisiones_fijas: resData.comisiones_fijas || [],
-          agenda_semanal: agendaMapeada
-        });
-        setLoading(false);
-        setIsSyncing(false);
-        setAsistentes(resData.asistentes || []);
-        setComisiones(resData.comisiones || []);
-        setTutorias(resData.tutorias || []);
-      })
-      .catch((error) => {
-        console.error("Error cargando el calendario organizativo:", error);
-        setLoading(false);
-        setIsSyncing(false);
-      });
-  }, []);
-
+  // Actualización silenciosa en segundo plano cada 30 segundos
   useEffect(() => {
-    cargarAgenda(true);
-
     const intervalo = setInterval(() => {
-      cargarAgenda(false);
+      refreshDatos(true);
     }, 30000);
 
     return () => clearInterval(intervalo);
-  }, [cargarAgenda]);
+  }, [refreshDatos]);
 
   const año = fechaActual.getFullYear();
   const mes = fechaActual.getMonth();
@@ -135,7 +120,7 @@ function CalendarioAsistentes() {
     const dd = String(fechaCelda.getDate()).padStart(2, "0");
     const stringCelda = `${yyyy}-${mm}-${dd}`;
 
-    return data.agenda_semanal.filter((item) => {
+    return agenda.filter((item) => {
       const fechaNormalizada = normalizarFecha(item.fecha || item.fecha_dia);
       return fechaNormalizada === stringCelda;
     });
@@ -147,6 +132,7 @@ function CalendarioAsistentes() {
     setDiaSeleccionado(nuevaFecha);
   };
 
+  // Loader principal controlado de forma global
   if (loading)
     return (
       <div className="flex flex-col items-center justify-center py-32 text-slate-400 font-medium tracking-tight">
@@ -187,7 +173,7 @@ function CalendarioAsistentes() {
 
           <div className="flex items-center gap-1.5">
             <button 
-              onClick={() => cargarAgenda(false)}
+              onClick={handleSincronizarManual}
               disabled={isSyncing}
               title="Sincronizar con Google Sheets"
               className="p-2 bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 rounded-lg shadow-3xs transition active:scale-95 disabled:opacity-50"
@@ -305,7 +291,6 @@ function CalendarioAsistentes() {
                   return (
                     <div key={idx} className="p-3 bg-slate-50/60 rounded-xl border border-slate-150 relative space-y-2">
                       
-                      {/* HEADER DE LA TARJETA */}
                       <div className="flex items-center justify-between gap-2">
                         <h4 className="text-xs font-black text-slate-800 truncate pr-2">{ev.titulo || "Reunión General"}</h4>
                         
@@ -314,7 +299,6 @@ function CalendarioAsistentes() {
                             {ev.tipo}
                           </span>
                           
-                          {/* BOTÓN EDITAR */}
                           <button
                             onClick={() => {
                               setEventoEditar(ev);
@@ -328,7 +312,6 @@ function CalendarioAsistentes() {
                         </div>
                       </div>
 
-                      {/* CUERPO DE LA TARJETA */}
                       <div className="space-y-1.5 text-[11px] text-slate-500 font-medium">
                         <div className="flex items-center gap-1.5">
                           <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
@@ -379,13 +362,12 @@ function CalendarioAsistentes() {
 
       </div>
 
-      {/* MODALES */}
+      {/* MODALES CON PARÁMETROS SINCRONIZADOS */}
       <AddEvento
         open={showModal}
         onClose={() => setShowModal(false)}
         onSuccess={() => {
-          cargarAgenda(false);
-          setShowModal(false);
+          refreshDatos(true);
         }}
         asistentes={asistentes}
         comisiones={comisiones}
@@ -400,7 +382,7 @@ function CalendarioAsistentes() {
         tutorias={tutorias}
         onClose={() => setShowEditModal(false)}
         onSuccess={() => {
-          cargarAgenda(false);
+          refreshDatos(true);
           setShowEditModal(false);
         }}
       />
