@@ -1,59 +1,89 @@
-import { useEffect, useState } from "react";
-// Importamos los íconos profesionales de Lucide
+import { useEffect, useState, useCallback } from "react";
+import AddEvento from "../forms/AddEvento";
+import EditEvento from "../forms/EditEvento";
+
 import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
-  GraduationCap,
   Clock,
-  Mail,
   User,
-  AlertCircle,
-  X,
   Loader2,
+  MapPin,
+  Plus,
+  MessageSquare,
+  Sparkles,
+  CheckCircle2,
+  RefreshCw,
+  PencilLine
 } from "lucide-react";
 
+const COLORES_PASTEL = {
+  tutoria: { bg: "bg-purple-100/90 text-purple-700 border-purple-200", dot: "bg-purple-400" },
+  comision: { bg: "bg-blue-100/90 text-blue-700 border-blue-200", dot: "bg-blue-400" },
+  reunion: { bg: "bg-emerald-100/90 text-emerald-700 border-emerald-200", dot: "bg-emerald-400" },
+  encuentro: { bg: "bg-amber-100/90 text-amber-700 border-amber-200", dot: "bg-amber-400" },
+  otro: { bg: "bg-slate-100 text-slate-700 border-slate-200", dot: "bg-slate-400" }
+};
+
 function CalendarioAsistentes() {
-  const [data, setData] = useState({
-    comisiones_fijas: [],
-    agenda_semanal: [],
-  });
+  const [data, setData] = useState({ comisiones_fijas: [], agenda_semanal: [] });
   const [loading, setLoading] = useState(true);
-
+  const [isSyncing, setIsSyncing] = useState(false);
+  
   const [fechaActual, setFechaActual] = useState(new Date());
-  const [diaSeleccionado, setDiaSeleccionado] = useState(null);
+  const [diaSeleccionado, setDiaSeleccionado] = useState(new Date());
 
-  useEffect(() => {
-    fetch(
-      "https://script.google.com/macros/s/AKfycbx0iIxF8LMorbiqB_ilUVx_-ehNHAOc-TrZfaKuYgjwFB7NLg8T3DNBeIhg_zK7RaK8cQ/exec",
-    )
+  const [asistentes, setAsistentes] = useState([]);
+  const [comisiones, setComisiones] = useState([]);
+  const [tutorias, setTutorias] = useState([]);
+
+  const [showModal, setShowModal] = useState(false);
+
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [eventoEditar, setEventoEditar] = useState(null);
+
+  const cargarAgenda = useCallback((mostrarLoaderPrincipal = false) => {
+    if (mostrarLoaderPrincipal) setLoading(true);
+    else setIsSyncing(true);
+
+    fetch("https://script.google.com/macros/s/AKfycbxqjX-3Z2B6bzE95F8Wc-4QU8lvS9K15XnQmI-2cdCXtKiYsnVJ8MfBdbBaZumVLM9R4A/exec")
       .then((res) => res.json())
       .then((resData) => {
-        setData(resData);
+        const agendaMapeada = resData.agenda || resData.agenda_semanal || [];
+        setData({
+          comisiones_fijas: resData.comisiones_fijas || [],
+          agenda_semanal: agendaMapeada
+        });
         setLoading(false);
+        setIsSyncing(false);
+        setAsistentes(resData.asistentes || []);
+        setComisiones(resData.comisiones || []);
+        setTutorias(resData.tutorias || []);
       })
       .catch((error) => {
-        console.error("Error cargando el calendario:", error);
+        console.error("Error cargando el calendario organizativo:", error);
         setLoading(false);
+        setIsSyncing(false);
       });
   }, []);
+
+  useEffect(() => {
+    cargarAgenda(true);
+
+    const intervalo = setInterval(() => {
+      cargarAgenda(false);
+    }, 30000);
+
+    return () => clearInterval(intervalo);
+  }, [cargarAgenda]);
 
   const año = fechaActual.getFullYear();
   const mes = fechaActual.getMonth();
 
   const nombresMeses = [
-    "Enero",
-    "Febrero",
-    "Marzo",
-    "Abril",
-    "Mayo",
-    "Junio",
-    "Julio",
-    "Agosto",
-    "Septiembre",
-    "Octubre",
-    "Noviembre",
-    "Diciembre",
+    "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+    "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
   ];
 
   const primerDiaIndex = new Date(año, mes, 1).getDay();
@@ -61,247 +91,319 @@ function CalendarioAsistentes() {
   const ajustePrimerDia = primerDiaIndex === 0 ? 6 : primerDiaIndex - 1;
 
   const celdasCalendario = [];
-  for (let i = 0; i < ajustePrimerDia; i++) {
-    celdasCalendario.push(null);
-  }
-  for (let d = 1; d <= diasEnMes; d++) {
-    celdasCalendario.push(new Date(año, mes, d));
-  }
+  for (let i = 0; i < ajustePrimerDia; i++) celdasCalendario.push(null);
+  for (let d = 1; d <= diasEnMes; d++) celdasCalendario.push(new Date(año, mes, d));
+
+  const normalizarFecha = (fechaStr) => {
+    if (!fechaStr) return "";
+    if (/^\d{4}-\d{2}-\d{2}$/.test(fechaStr)) return fechaStr;
+    
+    const partes = fechaStr.split("/");
+    if (partes.length === 3) {
+      const dia = partes[0].padStart(2, "0");
+      const mes = partes[1].padStart(2, "0");
+      const año = partes[2];
+      return `${año}-${mes}-${dia}`;
+    }
+    
+    try {
+      const d = new Date(fechaStr);
+      if (!isNaN(d.getTime())) {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, "0");
+        const r = String(d.getDate()).padStart(2, "0");
+        return `${y}-${m}-${r}`;
+      }
+    } catch (e) {}
+    
+    return fechaStr;
+  };
+
+  const normalizarTipo = (tipoStr) => {
+    if (!tipoStr) return "otro";
+    return tipoStr
+      .toLowerCase()
+      .trim()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+  };
 
   const obtenerEventosDelDia = (fechaCelda) => {
     if (!fechaCelda) return [];
-
     const yyyy = fechaCelda.getFullYear();
     const mm = String(fechaCelda.getMonth() + 1).padStart(2, "0");
     const dd = String(fechaCelda.getDate()).padStart(2, "0");
     const stringCelda = `${yyyy}-${mm}-${dd}`;
 
     return data.agenda_semanal.filter((item) => {
-      const fechaItem = item.fecha_dia || item.fecha || "";
-      return (
-        fechaItem.includes(stringCelda) || fechaItem === `${dd}/${mm}/${yyyy}`
-      );
+      const fechaNormalizada = normalizarFecha(item.fecha || item.fecha_dia);
+      return fechaNormalizada === stringCelda;
     });
   };
 
   const cambiarMes = (direccion) => {
-    setFechaActual(new Date(año, mes + direccion, 1));
-    setDiaSeleccionado(null);
+    const nuevaFecha = new Date(año, mes + direccion, 1);
+    setFechaActual(nuevaFecha);
+    setDiaSeleccionado(nuevaFecha);
   };
 
   if (loading)
     return (
-      <div className="flex flex-col items-center justify-center py-32 text-slate-500 font-medium tracking-wide">
-        <Loader2 className="w-8 h-8 animate-spin text-emerald-500 mb-3" />
-        <span>Sincronizando calendario organizativo...</span>
+      <div className="flex flex-col items-center justify-center py-32 text-slate-400 font-medium tracking-tight">
+        <Loader2 className="w-8 h-8 animate-spin text-indigo-500 mb-3" />
+        <span className="text-xs bg-white text-slate-500 px-4 py-1.5 rounded-full border border-slate-200/60 shadow-3xs">
+          Conectando con Google Sheets...
+        </span>
       </div>
     );
 
-  console.log(data.agenda_semanal);
+  const eventosDiaSeleccionado = obtenerEventosDelDia(diaSeleccionado);
 
   return (
-    <div className="max-w-6xl mx-auto p-3 bg-slate-50/50 rounded-2xl border border-slate-200 shadow-sm transition-all duration-300">
-      {/* CONTROLES DE NAVEGACIÓN */}
-      <div className="flex justify-between items-center mb-4 bg-white px-4 py-2.5 rounded-xl border border-slate-200/80 shadow-xs">
-        <div className="flex items-center gap-2">
-          <div className="p-1.5 bg-emerald-50 text-emerald-600 rounded-lg">
+    <div className="max-w-6xl mx-auto p-4 tracking-tight bg-slate-50/50 rounded-3xl border border-slate-200">
+      
+      {/* HEADER SUPERIOR */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+        <div className="flex items-center gap-2.5">
+          <div className="p-1.5 bg-indigo-50 text-indigo-600 rounded-lg border border-indigo-100/40">
             <CalendarDays className="w-4 h-4" />
           </div>
-          <h2 className="text-base font-bold text-slate-800 tracking-tight">
-            {nombresMeses[mes]}{" "}
-            <span className="text-slate-400 font-normal">{año}</span>
-          </h2>
+          <div className="flex items-baseline gap-2">
+            <h1 className="text-xl font-black text-slate-800 leading-none">{nombresMeses[mes]}</h1>
+            <span className="text-sm font-mono text-slate-400 font-normal">· {año}</span>
+          </div>
         </div>
-
-        <div className="flex gap-1.5">
-          <button
-            onClick={() => cambiarMes(-1)}
-            className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-600 transition active:scale-95"
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => cambiarMes(1)}
-            className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-600 transition active:scale-95"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-
-      {/* GRILLA MENSUAL */}
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs">
-        {/* Encabezado días */}
-        <div className="grid grid-cols-7 bg-slate-800 text-slate-200 text-center font-semibold text-[11px] py-2 uppercase tracking-wider">
-          <div>Lun</div>
-          <div>Mar</div>
-          <div>Mié</div>
-          <div>Jue</div>
-          <div>Vie</div>
-          <div>Sáb</div>
-          <div>Dom</div>
-        </div>
-
-        {/* Celdas */}
-        <div className="grid grid-cols-7 divide-x divide-y divide-slate-100 bg-slate-50">
-          {celdasCalendario.map((fechaCelda, index) => {
-            const eventos = obtenerEventosDelDia(fechaCelda);
-            const esHoy =
-              fechaCelda &&
-              fechaCelda.toDateString() === new Date().toDateString();
-
-            return (
-              <div
-                key={index}
-                onClick={() => fechaCelda && setDiaSeleccionado(fechaCelda)}
-                className={`min-h-[78px] max-h-[82px] p-1.5 bg-white transition-all flex flex-col justify-between cursor-pointer relative ${
-                  !fechaCelda
-                    ? "bg-slate-50/40 cursor-default"
-                    : "hover:bg-slate-50"
-                } ${esHoy ? "bg-emerald-50/40 border-2 border-emerald-400 z-10" : ""}`}
-              >
-                {/* Número de día */}
-                <div className="flex justify-between items-center">
-                  <span
-                    className={`text-xs font-bold ${
-                      esHoy
-                        ? "bg-emerald-500 text-white px-1.5 py-0.5 rounded-md shadow-xs"
-                        : "text-slate-400"
-                    }`}
-                  >
-                    {fechaCelda ? fechaCelda.getDate() : ""}
-                  </span>
-                  {eventos.length > 0 && !esHoy && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-400"></span>
-                  )}
-                </div>
-
-                {/* Eventos */}
-                <div className="mt-1 space-y-1 overflow-hidden">
-                  {eventos.slice(0, 2).map((ev, i) => {
-                    const esTutoria = ev.tipo
-                      ?.toLowerCase()
-                      .includes("tutoria");
-                    return (
-                      <div
-                        key={i}
-                        className={`text-[9px] px-1 py-0.5 rounded font-medium truncate border ${
-                          esTutoria
-                            ? "bg-purple-50 text-purple-700 border-purple-200/60" // Violeta/Lavanda Pastel
-                            : "bg-blue-50 text-blue-700 border-blue-200/60" // Azul Pastel
-                        }`}
-                      >
-                        <span className="font-bold">{ev.asistente_real}</span>:{" "}
-                        {ev.nombre}
-                      </div>
-                    );
-                  })}
-                  {eventos.length > 2 && (
-                    <div className="text-[8px] text-slate-400 text-center font-medium bg-slate-50 rounded py-0.2">
-                      + {eventos.length - 2} más
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* PANEL DETALLE DE ASISTENCIA PRESENCIAL */}
-      {diaSeleccionado && (
-        <div className="mt-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm animate-in fade-in duration-200">
-          <div className="flex justify-between items-center border-b border-slate-100 pb-2 mb-3">
-            <h3 className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
-              <GraduationCap className="w-4 h-4 text-slate-500" />
-              Cobertura Presencial del{" "}
-              {diaSeleccionado.toLocaleDateString("es-AR", {
-                weekday: "long",
-                day: "numeric",
-                month: "long",
-              })}
-            </h3>
-            <button
-              onClick={() => setDiaSeleccionado(null)}
-              className="p-1 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-md transition"
-            >
-              <X className="w-3.5 h-3.5" />
+        
+        {/* BOTONERA CON CONTROLES DE SINCRONIZACIÓN */}
+        <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
+          <div className="flex bg-white border border-slate-200 rounded-lg p-0.5 shadow-3xs">
+            <button onClick={() => cambiarMes(-1)} className="p-1.5 hover:bg-slate-50 rounded text-slate-500 transition">
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <button onClick={() => cambiarMes(1)} className="p-1.5 hover:bg-slate-50 rounded text-slate-500 transition">
+              <ChevronRight className="w-4 h-4" />
             </button>
           </div>
 
-          <div className="space-y-2 max-h-[180px] overflow-y-auto pr-1">
-            {obtenerEventosDelDia(diaSeleccionado).length > 0 ? (
-              obtenerEventosDelDia(diaSeleccionado).map((item, idx) => {
-                const esTutoria = item.tipo?.toLowerCase().includes("tutoria");
-                return (
-                  <div
-                    key={idx}
-                    className="p-3 bg-slate-50 border border-slate-200/60 rounded-xl flex flex-col sm:flex-row justify-between sm:items-center gap-2"
-                  >
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span
-                          className={`px-2 py-0.5 text-[9px] font-bold rounded-md border ${
-                            esTutoria
-                              ? "bg-purple-50 text-purple-700 border-purple-200"
-                              : "bg-blue-50 text-blue-700 border-blue-200"
-                          }`}
+          <div className="flex items-center gap-1.5">
+            <button 
+              onClick={() => cargarAgenda(false)}
+              disabled={isSyncing}
+              title="Sincronizar con Google Sheets"
+              className="p-2 bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 rounded-lg shadow-3xs transition active:scale-95 disabled:opacity-50"
+            >
+              <RefreshCw className={`w-4 h-4 ${isSyncing ? "animate-spin text-indigo-500" : ""}`} />
+            </button>
+
+            <button 
+              onClick={() => setShowModal(true)}
+              className="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-3.5 py-2 rounded-lg transition shadow-xs flex items-center gap-1.5 active:scale-95"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Nuevo evento</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* EVENTOS */}
+      <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-[11px] font-bold text-slate-500 mb-5 px-1 border-b border-slate-100 pb-3">
+        <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-xs bg-purple-400" /> Tutoría</span>
+        <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-xs bg-blue-400" /> Comisión</span>
+        <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-xs bg-emerald-400" /> Reunión</span>
+        <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-xs bg-amber-400" /> Encuentro</span>
+        <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-xs bg-slate-400" /> Otro</span>
+      </div>
+
+      {/* CONTENEDOR COLUMNAS */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        
+        {/* CALENDARIO */}
+        <div className="lg:col-span-2 bg-white border border-slate-200/90 rounded-2xl shadow-2xs overflow-hidden">
+          <div className="grid grid-cols-7 bg-sky-100/90 border-b border-sky-200 text-center text-[11px] font-extrabold py-2.5 text-sky-800 tracking-wider">
+            <div>Lun</div><div>Mar</div><div>Mié</div><div>Jue</div><div>Vie</div><div>Sáb</div><div>Dom</div>
+          </div>
+
+          <div className="grid grid-cols-7 divide-x divide-y divide-slate-100 bg-slate-50/10">
+            {celdasCalendario.map((fechaCelda, index) => {
+              const eventos = obtenerEventosDelDia(fechaCelda);
+              const esHoy = fechaCelda && fechaCelda.toDateString() === new Date().toDateString();
+              const esSeleccionado = fechaCelda && diaSeleccionado && fechaCelda.toDateString() === diaSeleccionado.toDateString();
+
+              let bgCasillero = "bg-white";
+              if (!fechaCelda) bgCasillero = "bg-slate-50/60 pointer-events-none";
+              else if (esSeleccionado) bgCasillero = "bg-indigo-50/40";
+              else if (esHoy) bgCasillero = "bg-emerald-50/20";
+
+              return (
+                <div
+                  key={index}
+                  onClick={() => fechaCelda && setDiaSeleccionado(fechaCelda)}
+                  className={`min-h-[70px] sm:min-h-[82px] p-1.5 flex flex-col justify-between relative cursor-pointer transition-all ${bgCasillero} ${
+                    fechaCelda && !esSeleccionado ? "hover:bg-slate-50/80" : ""
+                  } ${esSeleccionado ? "ring-2 ring-indigo-400 ring-inset z-10" : ""} ${
+                    esHoy && !esSeleccionado ? "border border-emerald-400/80 z-10" : ""
+                  }`}
+                >
+                  <div className="flex justify-between items-center w-full">
+                    <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded-md ${
+                      esHoy ? "bg-emerald-500 text-white shadow-3xs" : esSeleccionado ? "text-indigo-600 font-extrabold" : "text-slate-400"
+                    }`}>
+                      {fechaCelda ? fechaCelda.getDate() : ""}
+                    </span>
+                    
+                    <div className="flex sm:hidden gap-0.5">
+                      {eventos.map((ev, i) => {
+                        const tipoLimpio = normalizarTipo(ev.tipo);
+                        const config = COLORES_PASTEL[tipoLimpio] || COLORES_PASTEL.otro;
+                        return <span key={i} className={`w-1.5 h-1.5 rounded-full ${config.dot}`} />;
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="hidden sm:block space-y-0.5 mt-1 overflow-hidden">
+                    {eventos.slice(0, 2).map((ev, i) => {
+                      const tipoLimpio = normalizarTipo(ev.tipo);
+                      const config = COLORES_PASTEL[tipoLimpio] || COLORES_PASTEL.otro;
+                      return (
+                        <div 
+                          key={i} 
+                          className={`text-[9px] px-1.5 py-0.5 rounded border font-bold truncate ${config.bg} ${config.text} ${config.border}`}
                         >
-                          {item.aula ? `AULA ${item.aula}` : "LABORATORIO"}
-                        </span>
-                        <strong className="text-slate-800 text-sm">
-                          {item.nombre}
-                        </strong>
+                          <span className="capitalize">{ev.asistente_nombre || "S/A"}</span>
+                          <span className="font-normal opacity-80"> ({ev.tipo})</span>
+                        </div>
+                      );
+                    })}
+                    {eventos.length > 2 && (
+                      <div className="text-[8px] text-center font-bold text-slate-400 bg-slate-50 border border-slate-200 rounded py-0.5">
+                        + {eventos.length - 2} más
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* DETALLES SIDEBAR */}
+        <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-2xs flex flex-col justify-between min-h-[380px]">
+          <div>
+            <div className="border-b border-slate-100 pb-3 mb-4">
+              <span className="text-[9px] uppercase font-bold text-slate-400 tracking-wider block mb-0.5">Actividades del día</span>
+              <h2 className="text-sm font-black text-slate-700 capitalize flex items-center gap-1.5">
+                {diaSeleccionado.toLocaleDateString("es-AR", { weekday: 'long', day: 'numeric', month: 'short' })}
+              </h2>
+            </div>
+
+            <div className="space-y-3 max-h-[390px] overflow-y-auto pr-1">
+              {eventosDiaSeleccionado.length > 0 ? (
+                eventosDiaSeleccionado.map((ev, idx) => {
+                  const tipoLimpio = normalizarTipo(ev.tipo);
+                  const config = COLORES_PASTEL[tipoLimpio] || COLORES_PASTEL.otro;
+                  return (
+                    <div key={idx} className="p-3 bg-slate-50/60 rounded-xl border border-slate-150 relative space-y-2">
+                      
+                      {/* HEADER DE LA TARJETA */}
+                      <div className="flex items-center justify-between gap-2">
+                        <h4 className="text-xs font-black text-slate-800 truncate pr-2">{ev.titulo || "Reunión General"}</h4>
+                        
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className={`text-[9px] px-2 py-0.5 font-bold rounded-full border capitalize ${config.bg} ${config.text} ${config.border}`}>
+                            {ev.tipo}
+                          </span>
+                          
+                          {/* BOTÓN EDITAR */}
+                          <button
+                            onClick={() => {
+                              setEventoEditar(ev);
+                              setShowEditModal(true);
+                            }}
+                            title="Editar evento"
+                            className="p-1 bg-white hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 border border-slate-200/60 hover:border-indigo-200 rounded-lg shadow-3xs transition active:scale-90"
+                          >
+                            <PencilLine className="w-3 h-3" />
+                          </button>
+                        </div>
                       </div>
 
-                      <div className="flex items-center gap-3 text-slate-500 text-[11px] flex-wrap">
-                        <span className="flex items-center gap-1">
-                          <Clock className="w-3 h-3 text-slate-400" />{" "}
-                          {item.horario}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <User className="w-3 h-3 text-slate-400" /> Prof:{" "}
-                          {item.docente}
-                        </span>
-                        {item.docente_mail && (
-                          <span className="flex items-center gap-1 text-slate-400">
-                            <Mail className="w-3 h-3" /> {item.docente_mail}
-                          </span>
+                      {/* CUERPO DE LA TARJETA */}
+                      <div className="space-y-1.5 text-[11px] text-slate-500 font-medium">
+                        <div className="flex items-center gap-1.5">
+                          <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          <span>{ev.horario || "Horario a confirmar"}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          <span>Aula: <strong className="text-slate-700">{ev.aula || "Virtual / Meet"}</strong></span>
+                        </div>
+                        
+                        {ev.docente && (
+                          <div className="flex items-center gap-1.5 border-t border-slate-150 pt-1.5 mt-1.5 text-[10px]">
+                            <User className="w-3 h-3 text-slate-400" />
+                            <span>Profesor/a: <strong className="text-slate-600">{ev.docente}</strong></span>
+                          </div>
+                        )}
+                        {ev.asistente_nombre && (
+                          <div className="flex items-center gap-1.5 text-[10px]">
+                            <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+                            <span>Asistentes: <strong className="text-indigo-600">{ev.asistente_nombre}</strong></span>
+                          </div>
+                        )}
+
+                        {ev.detalle_nota && (
+                          <div className="mt-2 p-2 bg-amber-50/80 border border-amber-200/70 rounded-lg text-amber-900 text-[10px] flex gap-1 items-start">
+                            <MessageSquare className="w-3 h-3 text-amber-500 shrink-0 mt-0.5" />
+                            <p className="leading-tight"><span className="font-bold">Detalle:</span> {ev.detalle_nota}</p>
+                          </div>
                         )}
                       </div>
 
-                      {item.notas && (
-                        <div className="flex items-center gap-1 text-[11px] bg-amber-50 text-amber-800 px-2 py-1 rounded-md border border-amber-200/70 w-fit mt-1">
-                          <AlertCircle className="w-3 h-3 text-amber-600 shrink-0" />
-                          <span>{item.notas}</span>
-                        </div>
-                      )}
                     </div>
+                  );
+                })
+              ) : (
+                <div className="text-center py-12 text-slate-400 italic text-[11px] bg-slate-50/40 border border-dashed border-slate-200 rounded-xl">
+                  No hay actividades agendadas para hoy.
+                </div>
+              )}
+            </div>
+          </div>
 
-                    <div className="bg-white px-3 py-1.5 rounded-lg border border-slate-200 text-right min-w-[140px] shadow-2xs shrink-0">
-                      <span className="text-[8px] text-slate-400 block font-bold uppercase tracking-wider">
-                        Asistente
-                      </span>
-                      <span className="font-bold text-slate-700 text-sm">
-                        {item.asistente_real}
-                      </span>
-                      <span
-                        className={`block text-[9px] font-semibold ${item.estado === "Oficial" ? "text-emerald-600" : "text-amber-600"}`}
-                      >
-                        {item.estado}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })
-            ) : (
-              <p className="text-xs text-slate-400 italic py-2 text-center">
-                No hay comisiones asignadas para este día.
-              </p>
-            )}
+          <div className="pt-3 border-t border-slate-100 text-center flex items-center justify-center gap-1 text-[10px] font-bold text-slate-400">
+            <Sparkles className="w-3 h-3 text-indigo-400" />
+            <span>NE / CADU · Calendario Organizativo</span>
           </div>
         </div>
-      )}
+
+      </div>
+
+      {/* MODALES */}
+      <AddEvento
+        open={showModal}
+        onClose={() => setShowModal(false)}
+        onSuccess={() => {
+          cargarAgenda(false);
+          setShowModal(false);
+        }}
+        asistentes={asistentes}
+        comisiones={comisiones}
+        tutorias={tutorias}
+      />
+
+      <EditEvento
+        open={showEditModal}
+        evento={eventoEditar}
+        asistentes={asistentes}
+        comisiones={comisiones}
+        tutorias={tutorias}
+        onClose={() => setShowEditModal(false)}
+        onSuccess={() => {
+          cargarAgenda(false);
+          setShowEditModal(false);
+        }}
+      />
     </div>
   );
 }
