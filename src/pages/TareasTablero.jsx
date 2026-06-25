@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useApp } from "../context/AppContext";
 import { Kanban, Plus, Clock, Loader2 } from "lucide-react";
 import ModalTarea from "../forms/ModalTarea";
@@ -45,6 +45,16 @@ function TareasTablero() {
   const [isModalOpen, setModalOpen] = useState(false);
   const [tareaSeleccionada, setTareaSeleccionada] = useState(null);
 
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (!isModalOpen) {
+        refreshDatos();
+      }
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, [refreshDatos, isModalOpen]);
+
   const abrirModalNuevaTarea = () => {
     setTareaSeleccionada(null);
     setModalOpen(true);
@@ -66,9 +76,16 @@ function TareasTablero() {
   const handleDrop = async (e, nuevaColumna) => {
     const tareaId = e.dataTransfer.getData("text/plain");
     const tareaAEditar = tareas.find((t) => String(t.id) === String(tareaId));
-    if (!tareaAEditar) return;
 
-    const tareaModificada = { ...tareaAEditar, columna: nuevaColumna };
+    if (!tareaAEditar) return;
+    if (tareaAEditar.columna === nuevaColumna) return;
+
+    // Actualización visual instantánea
+    const tareaModificada = {
+      ...tareaAEditar,
+      columna: nuevaColumna,
+    };
+
     editarTareaLocal(tareaModificada);
 
     try {
@@ -80,10 +97,16 @@ function TareasTablero() {
           columna: nuevaColumna,
         }),
       });
+
       const data = await res.json();
+
       if (!data.ok) throw new Error();
+
+      // Sincroniza con la BD por si otro usuario cambió algo
+      refreshDatos();
     } catch (err) {
       console.error("Error sincronizando columna, revirtiendo...", err);
+
       refreshDatos();
     }
   };
