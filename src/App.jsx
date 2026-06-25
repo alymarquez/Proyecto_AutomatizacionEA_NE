@@ -5,6 +5,7 @@ import Layout from "./components/Layout";
 import Home from "./pages/Home";
 import Minutas from "./pages/Minutas";
 import Comisiones from "./pages/Comisiones";
+import Tutorias from "./pages/Tutorias";
 
 function App() {
   return (
@@ -15,6 +16,7 @@ function App() {
             <Route index element={<Home />} />
             <Route path="minutas" element={<Minutas />} />
             <Route path="comisiones" element={<Comisiones />} />
+            <Route path="tutorias" element={<Tutorias />} />
           </Route>
         </Routes>
       </BrowserRouter>
