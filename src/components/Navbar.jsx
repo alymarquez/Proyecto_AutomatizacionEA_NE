@@ -7,7 +7,8 @@ import {
   Users2, 
   ClipboardList, 
   Menu, 
-  X 
+  X,
+  Kanban
 } from "lucide-react";
 
 function Navbar() {
@@ -64,6 +65,11 @@ function Navbar() {
               <span>Inicio</span>
             </Link>
 
+            <Link to="/tareas" className={linkStyles("/tareas")}>
+              <Kanban className="w-3.5 h-3.5 shrink-0" />
+              <span>Tareas</span>
+            </Link>
+
             <Link to="/tutorias" className={linkStyles("/tutorias")}>
               <BookOpen className="w-3.5 h-3.5 shrink-0" />
               <span>Tutorías</span>
@@ -104,6 +110,15 @@ function Navbar() {
             >
               <HomeIcon className="w-4 h-4 text-slate-400 shrink-0" />
               <span>Inicio</span>
+            </Link>
+
+            <Link
+              to="/tareas"
+              className={mobileLinkStyles("/tareas")}
+              onClick={() => setMenuOpen(false)}
+            >
+              <Kanban className="w-4 h-4 text-slate-400 shrink-0" />
+              <span>Tareas</span>
             </Link>
 
             <Link

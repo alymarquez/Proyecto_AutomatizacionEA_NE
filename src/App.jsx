@@ -5,6 +5,7 @@ import Layout from "./components/Layout";
 import Home from "./pages/Home";
 import Minutas from "./pages/Minutas";
 import Comisiones from "./pages/Comisiones";
+import TareasTablero from "./pages/TareasTablero";
 
 function App() {
   return (
@@ -15,6 +16,7 @@ function App() {
             <Route index element={<Home />} />
             <Route path="minutas" element={<Minutas />} />
             <Route path="comisiones" element={<Comisiones />} />
+            <Route path="tareas" element={<TareasTablero />} />
           </Route>
         </Routes>
       </BrowserRouter>
