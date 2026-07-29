@@ -30,13 +30,15 @@ const COLORES_PASTEL = {
 function CalendarioAsistentes() {
   // Extraemos todo el set de datos globales y la función de refresh del Contexto
   const { 
-    agenda, 
-    asistentes, 
+    calendario, 
+    usuarios, 
     comisiones, 
     tutorias, 
     loading, 
     refreshDatos 
   } = useApp();
+
+  
 
   const [isSyncing, setIsSyncing] = useState(false);
   
@@ -115,12 +117,14 @@ function CalendarioAsistentes() {
 
   const obtenerEventosDelDia = (fechaCelda) => {
     if (!fechaCelda) return [];
+    
     const yyyy = fechaCelda.getFullYear();
     const mm = String(fechaCelda.getMonth() + 1).padStart(2, "0");
     const dd = String(fechaCelda.getDate()).padStart(2, "0");
     const stringCelda = `${yyyy}-${mm}-${dd}`;
 
-    return agenda.filter((item) => {
+    return calendario.filter((item) => {
+      
       const fechaNormalizada = normalizarFecha(item.fecha || item.fecha_dia);
       return fechaNormalizada === stringCelda;
     });
@@ -144,6 +148,7 @@ function CalendarioAsistentes() {
     );
 
   const eventosDiaSeleccionado = obtenerEventosDelDia(diaSeleccionado);
+  console.log(eventosDiaSeleccionado);
 
   return (
     <div className="max-w-6xl mx-auto p-4 tracking-tight bg-slate-50/50 rounded-3xl border border-slate-200">
@@ -256,7 +261,7 @@ function CalendarioAsistentes() {
                           key={i} 
                           className={`text-[9px] px-1.5 py-0.5 rounded border font-bold truncate ${config.bg} ${config.text} ${config.border}`}
                         >
-                          <span className="capitalize">{ev.asistente_nombre || "S/A"}</span>
+                          <span className="capitalize">{ev.asistentes || "S/A"}</span>
                           <span className="font-normal opacity-80"> ({ev.tipo})</span>
                         </div>
                       );
@@ -328,17 +333,17 @@ function CalendarioAsistentes() {
                             <span>Profesor/a: <strong className="text-slate-600">{ev.docente}</strong></span>
                           </div>
                         )}
-                        {ev.asistente_nombre && (
+                        {ev.asistentes && (
                           <div className="flex items-center gap-1.5 text-[10px]">
                             <CheckCircle2 className="w-3 h-3 text-emerald-500" />
-                            <span>Asistentes: <strong className="text-indigo-600">{ev.asistente_nombre}</strong></span>
+                            <span>Asistentes: <strong className="text-indigo-600">{ev.asistentes}</strong></span>
                           </div>
                         )}
 
-                        {ev.detalle_nota && (
+                        {ev.detalle && (
                           <div className="mt-2 p-2 bg-amber-50/80 border border-amber-200/70 rounded-lg text-amber-900 text-[10px] flex gap-1 items-start">
                             <MessageSquare className="w-3 h-3 text-amber-500 shrink-0 mt-0.5" />
-                            <p className="leading-tight"><span className="font-bold">Detalle:</span> {ev.detalle_nota}</p>
+                            <p className="leading-tight"><span className="font-bold">Detalle:</span> {ev.detalle}</p>
                           </div>
                         )}
                       </div>
@@ -369,7 +374,7 @@ function CalendarioAsistentes() {
         onSuccess={() => {
           refreshDatos(true);
         }}
-        asistentes={asistentes}
+        asistentes={usuarios.filter(u => u.rol === "asistente")}
         comisiones={comisiones}
         tutorias={tutorias}
       />
@@ -377,7 +382,7 @@ function CalendarioAsistentes() {
       <EditEvento
         open={showEditModal}
         evento={eventoEditar}
-        asistentes={asistentes}
+        asistentes={usuarios.filter(u => u.rol === "asistente")}
         comisiones={comisiones}
         tutorias={tutorias}
         onClose={() => setShowEditModal(false)}

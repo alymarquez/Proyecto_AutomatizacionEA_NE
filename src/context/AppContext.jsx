@@ -4,32 +4,43 @@ const AppContext = createContext();
 
 export function AppProvider({ children }) {
   const [datosGlobales, setDatosGlobales] = useState({
-    agenda: [],
-    asistentes: [],
+    eventos: [],
+    usuarios: [],
     comisiones: [],
     tutorias: [],
-    tareas: []
+    tareas: [],
+    minutas: [],
+    totalMinutas: 0,
+    paginaMinutas: 1,
   });
   const [loading, setLoading] = useState(true);
 
-  const API_URL = "https://script.google.com/macros/s/AKfycbxqjX-3Z2B6bzE95F8Wc-4QU8lvS9K15XnQmI-2cdCXtKiYsnVJ8MfBdbBaZumVLM9R4A/exec";
+  const API_URL = "https://script.google.com/macros/s/AKfycbwJpkMBS-3n5GkyOlEd8aOJD4Y_0MF1Ip00weO_jaO17wNZB2Zh-peZv8Vwy5x_pKYd_A/exec";
 
   // Carga inicial ÚNICA para todo el sistema
-  const refreshDatos = async (silencioso = false) => {
+  const refreshDatos = async (
+    silencioso = false,
+    pagina = 1) => {
     try {
       if (!silencioso) {
         setLoading(true);
       }
       
-      const res = await fetch(API_URL);
+      const res = await fetch(`${API_URL}?page=${pagina}`);
       const data = await res.json();
+
+      
       
       setDatosGlobales({
-        agenda: data.agenda || data.agenda_semanal || [],
-        asistentes: data.asistentes || [],
+        eventos: data.eventos || [],
+        usuarios: data.usuarios || [],
         comisiones: data.comisiones || [],
         tutorias: data.tutorias || [],
-        tareas: data.tareas || []
+        tareas: data.tareas || [],
+        calendario: data.calendario || [],      
+        minutas: data.minutas.minutas || [],
+        totalMinutas: data.minutas.total || 0,
+        paginaMinutas: 1,
       });
     } catch (err) {
       console.error("Error crítico cargando estado global:", err);
@@ -51,16 +62,69 @@ export function AppProvider({ children }) {
   const editarTareaLocal = (tareaModificada) => {
     setDatosGlobales(prev => ({
       ...prev,
-      tareas: prev.tareas.map(t => t.id === tareaModificada.id ? tareaModificada : t)
+      tareas: prev.tareas.map(t => Number(t.id_tareas) === Number(tareaModificada.id_tareas) ? tareaModificada : t)
     }));
   };
 
   const eliminarTareaLocal = (idEliminado) => {
     setDatosGlobales(prev => ({
       ...prev,
-      tareas: prev.tareas.filter(t => t.id !== idEliminado)
+      tareas: prev.tareas.filter(t => Number(t.id_tareas) !== Number(idEliminado))
     }));
   };
+
+  const actualizarEventoLocal = (eventoActualizado) => {
+  setDatosGlobales(prev => ({
+    ...prev,
+    eventos: prev.eventos.map(evento =>
+      Number(evento.id_calendario) === Number(eventoActualizado.id_calendario)
+        ? {
+            ...evento,
+            asistente_id: eventoActualizado.asistente_id
+          }
+        : evento
+    )
+  }));
+};
+
+const editarEvento = async (datos) => {
+  const response = await fetch(API_URL, {
+    method: "POST",
+    body: JSON.stringify({
+      accion: "editarEvento",
+      ...datos
+    })
+  });
+
+  const result = await response.json();
+
+  if (!result.ok) {
+    throw new Error(result.error);
+  }
+
+  await refreshDatos(true);
+
+  return result;
+};
+
+const agregarMinutaLocal = (nuevaMinuta) => {
+  setDatosGlobales(prev => ({
+    ...prev,
+    minutas: [nuevaMinuta, ...prev.minutas]
+  }));
+};
+
+const actualizarMinutaLocal = (minutaActualizada) => {
+  setDatosGlobales(prev => ({
+    ...prev,
+    minutas: prev.minutas.map(m =>
+      Number(m.id) === Number(minutaActualizada.id)
+        ? minutaActualizada
+        : m
+    )
+  }));
+};
+
 
   return (
     <AppContext.Provider value={{ 
@@ -70,7 +134,11 @@ export function AppProvider({ children }) {
       refreshDatos,
       agregarTareaLocal,
       editarTareaLocal,
-      eliminarTareaLocal
+      eliminarTareaLocal,
+      actualizarEventoLocal,
+      editarEvento,
+      agregarMinutaLocal,
+      actualizarMinutaLocal
     }}>
       {children}
     </AppContext.Provider>

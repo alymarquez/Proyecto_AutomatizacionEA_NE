@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useApp } from "../context/AppContext";
 import {
   X,
   Loader2,
@@ -13,8 +14,6 @@ import {
   Trash2
 } from "lucide-react";
 
-const URL_SCRIPT =
-  "https://script.google.com/macros/s/AKfycbxqjX-3Z2B6bzE95F8Wc-4QU8lvS9K15XnQmI-2cdCXtKiYsnVJ8MfBdbBaZumVLM9R4A/exec";
 
 const COLORES_PASTEL = {
   tutoria: "focus:ring-purple-400 border-purple-200 bg-purple-50/30 text-purple-700",
@@ -36,6 +35,8 @@ export default function EditEvento({
   const [saving, setSaving] = useState(false);
   const [errores, setErrores] = useState({ tipo: false, fecha: false });
 
+  const { editarEvento, refreshDatos } = useApp();
+
   const [form, setForm] = useState({
     id: "",
     fecha: "",
@@ -53,24 +54,36 @@ export default function EditEvento({
   useEffect(() => {
     if (!evento) return;
 
-    let fechaLimpia = evento.fecha || "";
-    if (fechaLimpia.includes("T")) {
-      fechaLimpia = fechaLimpia.split("T")[0];
-    }
+    let fecha = "";
+
+if (evento.fecha) {
+
+  if (evento.fecha.includes("/")) {
+
+    const [dia, mes, anio] = evento.fecha.split("/");
+    fecha = `${anio}-${mes.padStart(2, "0")}-${dia.padStart(2, "0")}`;
+
+  } else {
+
+    fecha = evento.fecha.split("T")[0];
+
+  }
+
+}
 
     setForm({
-      id: evento.id || "",
-      fecha: fechaLimpia,
+      id: evento.id_calendario || "",
+      fecha: fecha,
       tipo: evento.tipo || "",
-      comision_id: evento.comision_id || "",
-      tutoria_id: evento.tutoria_id || "",
+      comision_id: evento.referencia_id || "",
+      tutoria_id: evento.referencia_id || "",
       asistentes: evento.asistente_id
         ? String(evento.asistente_id).split(";")
         : [],
       titulo_manual: evento.titulo_manual || evento.titulo || "",
-      horario_manual: String(evento.horario_manual) || String(evento.horario) || "",
+      horario_manual: evento.horario_manual || evento.horario || "",
       aula_manual: evento.aula_manual || evento.aula || "",
-      detalle_nota: evento.detalle_nota || ""
+      detalle_nota: evento.detalle_nota || evento.detalle || ""
     });
     
     setErrores({ tipo: false, fecha: false });
@@ -110,27 +123,24 @@ export default function EditEvento({
 
     try {
       setSaving(true);
-      const response = await fetch(URL_SCRIPT, {
-        method: "POST",
-        body: JSON.stringify({
-          accion: "editar",
-          id: form.id,
-          fecha: form.fecha,
-          tipo: form.tipo,
-          comision_id: form.comision_id,
-          tutoria_id: form.tutoria_id,
-          asistente_id: form.asistentes.join(";"),
-          titulo_manual: form.titulo_manual,
-          horario_manual: String(form.horario_manual),
-          aula_manual: form.aula_manual,
-          detalle_nota: form.detalle_nota
-        })
-      });
+      
+      await editarEvento({
+    id: form.id,
+    fecha: form.fecha,
+    tipo: form.tipo,
+    comision_id: form.comision_id,
+    tutoria_id: form.tutoria_id,
+    asistente_id: form.asistentes.join(";"),
+    titulo_manual: form.titulo_manual,
+    horario_manual: form.horario_manual,
+    aula_manual: form.aula_manual,
+    detalle_nota: form.detalle_nota
+});
 
-      const result = await response.json();
-      if (!result.ok) throw new Error(result.error);
+await refreshDatos(true);
 
-      onSuccess();
+onSuccess();
+
     } catch (err) {
       console.error(err);
       alert("No se pudo actualizar el evento");
@@ -140,7 +150,9 @@ export default function EditEvento({
   };
 
   const eliminarEvento = async () => {
-    const confirmar = window.confirm(
+    alert("Todavía no implementado");
+};
+    /*const confirmar = window.confirm(
         `¿Seguro que querés eliminar el evento "${form.titulo_manual || evento.titulo}"?\n\nEsta acción no se puede deshacer.`
     );
 
@@ -166,12 +178,15 @@ export default function EditEvento({
     } finally {
         setSaving(false);
     }
-  };
+  };*/
 
   const inputStyles = "w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs text-slate-800 font-medium tracking-tight outline-none transition focus:ring-2 focus:ring-indigo-400 focus:border-transparent placeholder:text-slate-400 shadow-3xs";
   const inputErrorStyles = "border-rose-300 bg-rose-50/20 focus:ring-rose-400 focus:border-transparent";
   const labelStyles = "text-[11px] uppercase font-bold text-slate-400 tracking-wider flex items-center gap-1.5 mb-1.5";
-
+  const deshabilitado = "bg-slate-200 text-slate-400 cursor-not-allowed w-full border border-slate-200 rounded-xl p-2.5 text-xs text-slate-800 font-medium tracking-tight outline-none transition placeholder:text-slate-400 shadow-3xs"
+                         // bg-slate-200 text-slate-400 cursor-not-allowed"
+  const esEventoFijo =  form.tipo === "comision" || form.tipo === "tutoria";
+  
   return (
     <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex justify-center items-center p-4 z-50">
       <div className="bg-slate-50/95 border border-slate-200/90 rounded-3xl w-full max-w-xl shadow-xl overflow-hidden tracking-tight max-h-[90vh] flex flex-col">
@@ -204,6 +219,7 @@ export default function EditEvento({
               </label>
               <select
                 value={form.tipo}
+                disabled={esEventoFijo}
                 onChange={(e) => {
                   setForm({ ...form, tipo: e.target.value, comision_id: "", tutoria_id: "" });
                   if (e.target.value) setErrores(prev => ({ ...prev, tipo: false }));
@@ -211,8 +227,8 @@ export default function EditEvento({
                 className={`${inputStyles} ${form.tipo ? COLORES_PASTEL[form.tipo] || "" : ""} ${errores.tipo ? inputErrorStyles : ""}`}
               >
                 <option value="">Seleccionar...</option>
-                <option value="comision">Comisión</option>
-                <option value="tutoria">Tutoría</option>
+                {/*<option value="comision">Comisión</option>
+                <option value="tutoria">Tutoría</option>*/}
                 <option value="reunion">Reunión</option>
                 <option value="encuentro">Encuentro</option>
                 <option value="otro">Otro</option>
@@ -231,11 +247,16 @@ export default function EditEvento({
               <input
                 type="date"
                 value={form.fecha}
+                disabled={esEventoFijo}
                 onChange={(e) => {
                   setForm({ ...form, fecha: e.target.value });
                   if (e.target.value) setErrores(prev => ({ ...prev, fecha: false }));
                 }}
-                className={`${inputStyles} ${errores.fecha ? inputErrorStyles : ""}`}
+                className={
+                  esEventoFijo
+                    ? deshabilitado
+                    : `${inputStyles} ${errores.fecha ? inputErrorStyles : ""}`
+                }
               />
               {errores.fecha && (
                 <span className="text-[10px] text-rose-500 font-bold flex items-center gap-1 mt-1.5 animate-fade-in">
@@ -250,9 +271,14 @@ export default function EditEvento({
             <div className="animate-slide-down">
               <label className={labelStyles}>Asignar Comisión</label>
               <select
+                disabled
                 value={form.comision_id}
                 onChange={(e) => setForm({ ...form, comision_id: e.target.value })}
-                className={inputStyles}
+                className={
+                  esEventoFijo
+                    ? deshabilitado
+                    : `${inputStyles} ${form.tipo ? COLORES_PASTEL[form.tipo] || "" : ""} ${errores.tipo ? inputErrorStyles : ""}`
+                }
               >
                 <option value="">Seleccionar Comisión Fija</option>
                 {comisiones.map((c) => (
@@ -267,8 +293,13 @@ export default function EditEvento({
               <label className={labelStyles}>Asignar Tutoría</label>
               <select
                 value={form.tutoria_id}
+                disabled
                 onChange={(e) => setForm({ ...form, tutoria_id: e.target.value })}
-                className={inputStyles}
+                className={
+                  esEventoFijo
+                    ? deshabilitado
+                    : `${inputStyles} ${form.tipo ? COLORES_PASTEL[form.tipo] || "" : ""} ${errores.tipo ? inputErrorStyles : ""}`
+                }
               >
                 <option value="">Seleccionar Tutoría</option>
                 {tutorias.map((t) => (
@@ -287,8 +318,9 @@ export default function EditEvento({
               type="text"
               placeholder="Ej: Entrega de Informes UX u Horario de Consultas"
               value={form.titulo_manual}
+              disabled={esEventoFijo}
               onChange={(e) => setForm({ ...form, titulo_manual: e.target.value })}
-              className={inputStyles}
+              className={esEventoFijo ? deshabilitado : inputStyles}
             />
           </div>
 
@@ -301,8 +333,9 @@ export default function EditEvento({
               <input
                 placeholder="Ej: 18:00 a 20:00"
                 value={form.horario_manual}
+                disabled={esEventoFijo}
                 onChange={(e) => setForm({ ...form, horario_manual: e.target.value })}
-                className={inputStyles}
+                className={esEventoFijo ? deshabilitado : inputStyles}
               />
             </div>
 
@@ -313,8 +346,9 @@ export default function EditEvento({
               <input
                 placeholder="Ej: Aula 102 o Meet"
                 value={form.aula_manual}
+                disabled={esEventoFijo}
                 onChange={(e) => setForm({ ...form, aula_manual: e.target.value })}
-                className={inputStyles}
+                className={esEventoFijo ? deshabilitado : inputStyles}
               />
             </div>
           </div>
@@ -326,12 +360,12 @@ export default function EditEvento({
             </label>
             <div className="flex flex-wrap gap-1.5 p-3.5 bg-white border border-slate-200 rounded-2xl max-h-40 overflow-y-auto shadow-3xs">
               {asistentes.map((a) => {
-                const seleccionado = form.asistentes.includes(String(a.id));
+                const seleccionado = form.asistentes.includes(String(a.id_usuarios));
                 return (
                   <button
                     type="button"
                     key={a.id}
-                    onClick={() => toggleAsistente(String(a.id))}
+                    onClick={() => toggleAsistente(String(a.id_usuarios))}
                     className={`text-[11px] font-bold px-3 py-1.5 rounded-xl border transition active:scale-95 ${
                       seleccionado
                         ? "bg-indigo-600 text-white border-indigo-600 shadow-3xs"

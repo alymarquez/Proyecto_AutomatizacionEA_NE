@@ -1,14 +1,16 @@
 import { useState } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
+import { useApp } from "../context/AppContext";
+import { X, Users } from "lucide-react";
+import { CheckCircle2, ClipboardList } from "lucide-react";
 import StarterKit from "@tiptap/starter-kit";
-//import BulletList from "@tiptap/extension-bullet-list";
-//import OrderedList from "@tiptap/extension-ordered-list";
-//import ListItem from "@tiptap/extension-list-item";
+
 
 function AddMinutaForm({ onClose, onSave }) {
-  const [participantes, setParticipantes] =
-    useState("");
-
+  const [seleccionados, setSeleccionados] = useState([]);
+  const [guardando, setGuardando] = useState(false);
+  const { usuarios } = useApp();
+  
   const editor = useEditor({
     extensions: [
       StarterKit,
@@ -16,79 +18,75 @@ function AddMinutaForm({ onClose, onSave }) {
     content: "",
   });
 
-  const handleSubmit = async (e) => {
-  e.preventDefault();
-
-  // Validación participantes
-  if (!participantes.trim()) {
-    alert("Debés completar participantes.");
-    return;
-  }
-
-  // Validación temas tratados
-  const contenidoTexto =
-    editor?.getText().trim();
-
-  if (!contenidoTexto) {
-    alert(
-      "Debés completar temas tratados."
-    );
-    return;
-  }
-
-  const nuevaMinuta = {
-    fecha: new Date()
-      .toISOString()
-      .split("T")[0],
-
-    participantes,
-
-    temasTratados:
-      editor?.getHTML(),
-
-    autor: "Sebastian",
-
-    createdAt: new Date().toISOString(),
-
-    updateAt: new Date().toISOString()
+  const toggleAsistente = (id) => {
+  setSeleccionados(prev =>
+    prev.includes(id)
+      ? prev.filter(x => x !== id)
+      : [...prev, id]
+  );
   };
 
-try {
-  const response = await fetch(
-    "https://script.google.com/macros/s/AKfycbwcoAh5FGqo7Xe_tg0SvrRt5Y7MEMXQRUYXeNyT4yV4oj5ZBaHtKc6BNX-lQZxVL4HtTA/exec",
-    {
-      method: "POST",
-      mode: "no-cors",
-      body: JSON.stringify(nuevaMinuta),
-    }
+  const asistentes = usuarios.filter(
+    u => u.rol === "asistente"
   );
 
-  console.log(response);
+  const handleSubmit = async (e) => {
+    e.preventDefault();
 
-  alert("POST enviado");
-  if (onClose) {
-    onClose();
-  }
+    if (seleccionados.length === 0) {
+      alert("Debés seleccionar al menos un participante.");
+      return;
+    }
 
-  setTimeout(() => {
-    window.location.reload();
-  }, 100);
-} catch (error) {
-  console.error(error);
-}}
+    // Validación temas tratados
+    const contenidoTexto = editor?.getText().trim();
+
+    if (!contenidoTexto) {
+      alert(
+        "Debés completar temas tratados."
+      );
+      return;
+    }
+
+    const nuevaMinuta = {
+      fecha: new Date().toISOString().split("T")[0],
+      participantes: seleccionados.join(";"),
+      temasTratados: editor?.getHTML(),
+      autor: "",//usuarioActual.nombre,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    setGuardando(true);
+
+    try {
+      await onSave(nuevaMinuta);
+      onClose();
+    } finally {
+      setGuardando(false);
+    }
+  };
+
   
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex justify-center items-center p-4">
       {/* Modal */}
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
         
-        <div className="p-6">
+        
           {/* Header */}
-          <div className="flex justify-between items-center mb-6 sticky top-0 bg-white pb-3">
-            <h2 className="text-2xl font-bold">
-              Agregar minuta
-            </h2>
-
+          <div className="bg-gray-50 rounded-t-2xl flex justify-between items-center px-6 py-5">
+          {/*<div className="bg-gray-50 flex justify-between items-center px-6 py-5 border-b border-gray-200 p-6">*/}
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center">
+                <ClipboardList size={20} className="text-indigo-500" />
+              </div>
+              <div>
+                <h2 className="text-xl font-black text-slate-900 tracking-tight leading-none">
+                  Agregar minuta
+                </h2>
+              </div>
+            </div>
             <button
               onClick={onClose}
               className="text-xl hover:text-red-500"
@@ -96,14 +94,14 @@ try {
               ✕
             </button>
           </div>
-
+          
           <form
             onSubmit={handleSubmit}
-            className="space-y-5"
+            className="space-y-5 border-t border-gray-200 pt-6 flex-1 overflow-y-auto"
           >
             {/* Fecha */}
-            <div>
-              <label className="font-semibold block mb-2">
+            <div className="px-6">
+              <label className="block text-xs font-bold uppercase tracking-wide text-gray-400 mb-3">
                 Fecha
               </label>
 
@@ -118,27 +116,51 @@ try {
             </div>
 
             {/* Participantes */}
-            <div>
-              <label className="font-semibold block mb-2">
-                Participantes
-              </label>
+            {/* LISTA */}
 
-              <textarea
-                value={participantes}
-                onChange={(e) =>
-                  setParticipantes(
-                    e.target.value
-                  )
-                }
-                placeholder="Ej: Flor, Sebastián, Sofía..."
-                className="w-full border rounded-lg p-3 min-h-[100px]"
-                required
-              />
+        <div className="px-6">
+
+          <label className="block text-xs font-bold uppercase tracking-wide text-gray-400 mb-3">
+            Gestionar estudiantes asistentes
+          </label>
+
+          <div className="border border-gray-200 rounded-xl bg-gray-50 p-4 ">
+
+            <div className="flex flex-wrap gap-2">
+
+              {asistentes.map((a) => {
+
+                const activo = seleccionados.includes(Number(a.id_usuarios));
+
+                return (
+
+                  <button
+                    type="button"
+                    key={a.id_usuarios}
+                    onClick={() => toggleAsistente(Number(a.id_usuarios))}
+                    className={`text-[11px] font-bold px-3 py-1.5 rounded-xl border transition active:scale-95
+                           ${
+                            activo
+                            ? "bg-indigo-600 text-white border-indigo-600"
+                            : "bg-white text-gray-700 border-gray-300 hover:border-indigo-400"
+                        }
+                    `}
+                  >
+                    {a.nombre}
+                  </button>
+
+                );
+              })}
+
             </div>
 
+          </div>
+
+        </div>
+
             {/* Temas tratados */}
-            <div>
-              <label className="font-semibold block mb-2">
+            <div className="px-6">
+              <label className="block text-xs font-bold uppercase tracking-wide text-gray-400 mb-3">
                 Temas tratados
               </label>
 
@@ -210,25 +232,27 @@ try {
             </div>
 
             {/* Botones */}
-            <div className="flex justify-end gap-3 pt-4 sticky bottom-0 bg-white pb-2">
-              <button
-                type="button"
-                onClick={onClose}
-                className="border px-5 py-2 rounded-lg hover:bg-gray-100"
-              >
-                Cancelar
-              </button>
+            <div className="bg-gray-50 flex justify-end gap-3 px-6 py-4 border-t mt-5 border-gray-200">
+            <button
+              onClick={onClose}
+              className="flex items-center gap-1.5 active:scale-[0.98] px-5 py-2 rounded-xl bg-red-50 text-red-600 text-xs hover:bg-red-100 font-bold transition"
+            >
+              <X size={16}/>
+              Cancelar
+            </button>
 
-              <button
-                type="submit"
-                className="bg-green-700 text-white px-5 py-2 rounded-lg hover:bg-green-800"
-              >
-                Guardar minuta
-              </button>
+            <button
+              type="submit"
+              disabled={guardando}
+              className="bg-slate-900 hover:bg-slate-800 disabled:bg-slate-300 text-white text-xs font-bold py-2.5 px-4 rounded-xl transition shadow-xs flex justify-center items-center gap-1.5 active:scale-[0.98]"
+            >
+              <CheckCircle2 size={16}/>
+              {guardando ? "Guardando..." : "Guardar cambios"}
+            </button>
             </div>
           </form>
         </div>
-      </div>
+      
     </div>
   );
 }

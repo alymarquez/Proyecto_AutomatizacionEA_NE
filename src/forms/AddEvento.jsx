@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useApp } from "../context/AppContext";
 import {
   X,
   Loader2,
@@ -12,8 +13,6 @@ import {
   AlertCircle
 } from "lucide-react";
 
-const URL_SCRIPT =
-  "https://script.google.com/macros/s/AKfycbxqjX-3Z2B6bzE95F8Wc-4QU8lvS9K15XnQmI-2cdCXtKiYsnVJ8MfBdbBaZumVLM9R4A/exec";
 
 const COLORES_PASTEL = {
   tutoria: "focus:ring-purple-400 border-purple-200 bg-purple-50/30 text-purple-700",
@@ -33,6 +32,7 @@ export default function AddEvento({
 }) {
   const [saving, setSaving] = useState(false);
   const [errores, setErrores] = useState({ tipo: false, fecha: false });
+  const { API_URL } = useApp();
   
   const [form, setForm] = useState({
     fecha: "",
@@ -83,7 +83,7 @@ export default function AddEvento({
     try {
       setSaving(true);
       const payload = {
-        accion: "crear",
+        accion: "crear_evento",
         fecha: form.fecha,
         tipo: form.tipo,
         comision_id: form.comision_id,
@@ -95,7 +95,7 @@ export default function AddEvento({
         detalle_nota: form.detalle_nota
       };
 
-      const response = await fetch(URL_SCRIPT, {
+      const response = await fetch(API_URL, {
         method: "POST",
         body: JSON.stringify(payload)
       });
@@ -111,6 +111,7 @@ export default function AddEvento({
       });
       setErrores({ tipo: false, fecha: false });
       onSuccess();
+      onClose();
     } catch (error) {
       console.error(error);
       alert("No se pudo guardar el evento");
@@ -163,8 +164,8 @@ export default function AddEvento({
                 className={`${inputStyles} ${form.tipo ? COLORES_PASTEL[form.tipo] || "" : ""} ${errores.tipo ? inputErrorStyles : ""}`}
               >
                 <option value="">Seleccionar...</option>
-                <option value="comision">Comisión</option>
-                <option value="tutoria">Tutoría</option>
+                {/*<option value="comision">Comisión</option>
+                <option value="tutoria">Tutoría</option>*/}
                 <option value="reunion">Reunión</option>
                 <option value="encuentro">Encuentro</option>
                 <option value="otro">Otro</option>
@@ -280,12 +281,12 @@ export default function AddEvento({
             </label>
             <div className="flex flex-wrap gap-1.5 p-3.5 bg-white border border-slate-200 rounded-2xl max-h-40 overflow-y-auto shadow-3xs">
               {asistentes.map((a) => {
-                const seleccionado = form.asistentes.includes(String(a.id));
+                const seleccionado = form.asistentes.includes(String(a.id_usuarios));
                 return (
                   <button
                     type="button"
                     key={a.id}
-                    onClick={() => toggleAsistente(String(a.id))}
+                    onClick={() => toggleAsistente(String(a.id_usuarios))}
                     className={`text-[11px] font-bold px-3 py-1.5 rounded-xl border transition active:scale-95 ${
                       seleccionado
                         ? "bg-indigo-600 text-white border-indigo-600 shadow-3xs"

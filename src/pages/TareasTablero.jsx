@@ -33,7 +33,7 @@ const COLUMNAS = [
 function TareasTablero() {
   const {
     tareas,
-    asistentes,
+    usuarios,
     loading,
     API_URL,
     agregarTareaLocal,
@@ -75,7 +75,7 @@ function TareasTablero() {
 
   const handleDrop = async (e, nuevaColumna) => {
     const tareaId = e.dataTransfer.getData("text/plain");
-    const tareaAEditar = tareas.find((t) => String(t.id) === String(tareaId));
+    const tareaAEditar = tareas.find((t) => String(t.id_tareas) === String(tareaId));
 
     if (!tareaAEditar) return;
     if (tareaAEditar.columna === nuevaColumna) return;
@@ -231,9 +231,9 @@ function TareasTablero() {
 
                   return (
                     <div
-                      key={tarea.id}
+                      key={tarea.id_tareas}
                       draggable
-                      onDragStart={(e) => handleDragStart(e, tarea.id)}
+                      onDragStart={(e) => handleDragStart(e, tarea.id_tareas)}
                       onClick={() => abrirModalEditarTarea(tarea)}
                       className={`border p-4 rounded-xl shadow-3xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs cursor-grab active:cursor-grabbing select-none relative overflow-hidden flex flex-col justify-between min-h-[140px] ${postItColors} ${
                         esUrgentePorFecha ? "ring-1 ring-rose-400" : ""
@@ -255,7 +255,7 @@ function TareasTablero() {
                           </span>
                           {!esUrgentePorFecha && (
                             <span className="text-[10px] font-mono font-bold opacity-40">
-                              #{String(tarea.id).padStart(3, "0")}
+                              #{String(tarea.id_tareas).padStart(3, "0")}
                             </span>
                           )}
                         </div>
@@ -298,8 +298,8 @@ function TareasTablero() {
                               );
                             }
                             return idsAsignados.map((id) => {
-                              const asistenteObj = asistentes.find(
-                                (a) => String(a.id) === String(id),
+                              const asistenteObj = usuarios.find(
+                                (a) => String(a.id_usuarios) === String(id),
                               );
                               return (
                                 <span
@@ -345,7 +345,7 @@ function TareasTablero() {
         onTareaEditada={editarTareaLocal}
         onTareaElimitada={eliminarTareaLocal}
         API_URL={API_URL}
-        asistentes={asistentes}
+        asistentes={usuarios.filter(u => u.rol === "asistente")}
         tareaAEditar={tareaSeleccionada}
       />
     </div>

@@ -66,7 +66,7 @@ function Home() {
               <div className="flex flex-wrap gap-2">
                 {tareasCriticas.map((tarea) => (
                   <Link
-                    key={tarea.id}
+                    key={tarea.id_tareas}
                     to="/tareas"
                     className="group flex items-center gap-2 px-3 py-1.5 bg-white border border-rose-200 rounded-lg shadow-sm hover:shadow-md hover:border-rose-400 transition-all duration-300"
                   >
@@ -77,7 +77,7 @@ function Home() {
                     </span>
 
                     <span className="text-[8px] font-black text-rose-300 uppercase ml-1 pl-2 border-l border-rose-100">
-                      #{tarea.id}
+                      #{tarea.id_tareas}
                     </span>
                   </Link>
                 ))}

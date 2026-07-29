@@ -39,7 +39,7 @@ function ModalTarea({
 
       if (tareaAEditar) {
         setForm({
-          id: tareaAEditar.id,
+          id: tareaAEditar.id_tareas,
           titulo: tareaAEditar.titulo || "",
           descripcion: tareaAEditar.descripcion || "",
           prioridad: tareaAEditar.prioridad || "media",
@@ -129,13 +129,13 @@ function ModalTarea({
 
       if (data.ok) {
         if (esEdicion) {
-          onTareaEditada(form);
+          onTareaEditada({...form, id_tareas: form.id,});
         } else {
-          onTareaCreada({ id: data.id, ...form });
+          onTareaCreada(data.tarea);
         }
         onClose();
       } else {
-        alert("Error en la base de datos: " + data.error);
+        alert("Error en la base de datos: " + data.mensaje);
       }
     } catch (err) {
       console.error("Error al procesar tarea:", err);
@@ -164,7 +164,7 @@ function ModalTarea({
         onTareaElimitada(form.id);
         onClose();
       } else {
-        alert("Error al eliminar: " + data.error);
+        alert("Error al eliminar: " + data.mensaje);
       }
     } catch (err) {
       console.error("Error al eliminar tarea:", err);
@@ -315,12 +315,12 @@ function ModalTarea({
                   ) : (
                     asistentes.map((asistente) => {
                       const isChecked = idsSeleccionados.includes(
-                        String(asistente.id),
+                        String(asistente.id_usuarios),
                       );
                       return (
                         <div
-                          key={asistente.id}
-                          onClick={() => handleAsistenteToggle(asistente.id)}
+                          key={asistente.id_usuarios}
+                          onClick={() => handleAsistenteToggle(asistente.id_usuarios)}
                           className={`flex items-center justify-between px-3 py-2 rounded-lg hover:bg-slate-50/80 cursor-pointer select-none text-xs font-bold transition ${
                             isChecked
                               ? "bg-indigo-50/40 text-indigo-700"
