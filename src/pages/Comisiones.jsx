@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useApp } from "../context/AppContext";
-import EditResponsablesComisiones from "../forms/EditTesponsablesComisiones";
+import EditResponsablesComisiones from "../forms/EditResponsablesComisiones";
 import { Users2 } from "lucide-react";
 
 function Comisiones() {

@@ -45,12 +45,13 @@ function TareasTablero() {
   const [isModalOpen, setModalOpen] = useState(false);
   const [tareaSeleccionada, setTareaSeleccionada] = useState(null);
 
+  // AUTO-REFRESH SILENCIOSO
   useEffect(() => {
     const interval = setInterval(() => {
       if (!isModalOpen) {
-        refreshDatos();
+        refreshDatos(true);
       }
-    }, 10000);
+    }, 30000);
 
     return () => clearInterval(interval);
   }, [refreshDatos, isModalOpen]);
@@ -66,7 +67,7 @@ function TareasTablero() {
   };
 
   const handleDragStart = (e, id) => {
-    e.dataTransfer.setData("text/plain", id);
+    e.dataTransfer.setData("text/plain", String(id));
   };
 
   const handleDragOver = (e) => {
@@ -74,13 +75,13 @@ function TareasTablero() {
   };
 
   const handleDrop = async (e, nuevaColumna) => {
+    e.preventDefault();
     const tareaId = e.dataTransfer.getData("text/plain");
     const tareaAEditar = tareas.find((t) => String(t.id_tareas) === String(tareaId));
 
     if (!tareaAEditar) return;
     if (tareaAEditar.columna === nuevaColumna) return;
 
-    // Actualización visual instantánea
     const tareaModificada = {
       ...tareaAEditar,
       columna: nuevaColumna,
@@ -92,42 +93,39 @@ function TareasTablero() {
       const res = await fetch(API_URL, {
         method: "POST",
         body: JSON.stringify({
-          accion: "cambiar_columna",
-          id: tareaId,
-          columna: nuevaColumna,
+          accion: "editar_tarea",
+          id: tareaAEditar.id_tareas,
+          ...tareaModificada,
         }),
       });
 
       const data = await res.json();
 
-      if (!data.ok) throw new Error();
+      if (!data.ok) {
+        throw new Error(data.error || "Error al actualizar la columna");
+      }
 
-      // Sincroniza con la BD por si otro usuario cambió algo
-      refreshDatos();
+      refreshDatos(true);
     } catch (err) {
       console.error("Error sincronizando columna, revirtiendo...", err);
-
-      refreshDatos();
+      refreshDatos(true);
     }
   };
 
   const formatearFecha = (fechaStr) => {
     if (!fechaStr) return "Sin límite";
-
-    // Limpiamos por si viene con tiempo (ej: "2026-06-20T00:00:00Z")
     const fechaLimpia = String(fechaStr).split("T")[0];
     const [year, month, day] = fechaLimpia.split("-");
-
-    // Retorna formato DD/MM/YYYY
+    if (!year || !month || !day) return "Sin límite";
     return `${day}/${month}/${year.slice(-2)}`;
   };
 
-  if (loading) {
+  if (loading && tareas.length === 0) {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center gap-3">
         <Loader2 className="w-7 h-7 text-slate-800 animate-spin" />
         <p className="text-[10px] font-bold text-slate-400 tracking-wider uppercase">
-          Sincronizando Tablero...
+          Cargando Tablero...
         </p>
       </div>
     );
@@ -135,7 +133,7 @@ function TareasTablero() {
 
   return (
     <div className="p-4 sm:p-6 max-w-7xl mx-auto w-full flex flex-col flex-1 bg-slate-50/30 rounded-3xl border border-slate-100">
-      {/* Encabezado del Tablero */}
+      {/* Header del Tablero */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200/60 pb-6 mb-6">
         <div className="flex items-center gap-3.5">
           <div className="p-2.5 bg-white text-slate-800 rounded-2xl border border-slate-200 shadow-xs">
@@ -159,7 +157,7 @@ function TareasTablero() {
         </button>
       </div>
 
-      {/* CONTENEDOR DE LAS COLUMNAS */}
+      {/* Columnas Kanban */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 flex-1 items-start">
         {COLUMNAS.map((col) => {
           const tareasFiltradas = tareas.filter((t) => t.columna === col.id);
@@ -208,24 +206,31 @@ function TareasTablero() {
                     const hoy = new Date();
                     hoy.setHours(0, 0, 0, 0);
 
-                    const fechaLimite = new Date(
-                      String(tarea.fecha_limite).split("T")[0],
-                    );
-                    fechaLimite.setHours(0, 0, 0, 0);
+                    const fechaLimpia = String(tarea.fecha_limite).split("T")[0];
+                    const partes = fechaLimpia.split("-");
+                    
+                    if (partes.length === 3) {
+                      const fechaLimite = new Date(
+                        parseInt(partes[0], 10),
+                        parseInt(partes[1], 10) - 1,
+                        parseInt(partes[2], 10)
+                      );
+                      fechaLimite.setHours(0, 0, 0, 0);
 
-                    const diferenciaDias = Math.floor(
-                      (fechaLimite.getTime() - hoy.getTime()) / 86400000,
-                    );
+                      const diferenciaDias = Math.round(
+                        (fechaLimite.getTime() - hoy.getTime()) / 86400000
+                      );
 
-                    if (diferenciaDias < 0) {
-                      esUrgentePorFecha = true;
-                      mensajeVencimiento = "Vencida";
-                    } else if (diferenciaDias === 0) {
-                      esUrgentePorFecha = true;
-                      mensajeVencimiento = "Hoy";
-                    } else if (diferenciaDias === 1) {
-                      esUrgentePorFecha = true;
-                      mensajeVencimiento = "Mañana";
+                      if (diferenciaDias < 0) {
+                        esUrgentePorFecha = true;
+                        mensajeVencimiento = "Vencida";
+                      } else if (diferenciaDias === 0) {
+                        esUrgentePorFecha = true;
+                        mensajeVencimiento = "Hoy";
+                      } else if (diferenciaDias === 1) {
+                        esUrgentePorFecha = true;
+                        mensajeVencimiento = "Mañana";
+                      }
                     }
                   }
 
@@ -239,7 +244,7 @@ function TareasTablero() {
                         esUrgentePorFecha ? "ring-1 ring-rose-400" : ""
                       }`}
                     >
-                      {/* Badge Flotante Superior para Vencimiento */}
+                      {/* Badge Vencimiento */}
                       {esUrgentePorFecha && (
                         <div className="absolute top-2 right-2 bg-rose-600 text-white font-extrabold text-[8px] tracking-wide px-1.5 py-0.5 rounded-md uppercase shadow-xs">
                           {mensajeVencimiento}
@@ -260,7 +265,6 @@ function TareasTablero() {
                           )}
                         </div>
 
-                        {/* Título y Descripción */}
                         <h3 className="text-xs font-bold tracking-tight leading-snug mb-1 text-slate-800 pr-10">
                           {tarea.titulo}
                         </h3>
@@ -269,7 +273,7 @@ function TareasTablero() {
                         </p>
                       </div>
 
-                      {/* Footer de la tarjeta */}
+                      {/* Footer */}
                       <div
                         className="flex items-center justify-between pt-2.5 border-t border-slate-900/5 text-[10px] font-bold text-slate-400"
                         onClick={(e) => e.stopPropagation()}
@@ -299,7 +303,7 @@ function TareasTablero() {
                             }
                             return idsAsignados.map((id) => {
                               const asistenteObj = usuarios.find(
-                                (a) => String(a.id_usuarios) === String(id),
+                                (a) => String(a.id_usuarios) === String(id)
                               );
                               return (
                                 <span
@@ -345,7 +349,7 @@ function TareasTablero() {
         onTareaEditada={editarTareaLocal}
         onTareaElimitada={eliminarTareaLocal}
         API_URL={API_URL}
-        asistentes={usuarios.filter(u => u.rol === "asistente")}
+        asistentes={usuarios.filter((u) => u.rol === "asistente")}
         tareaAEditar={tareaSeleccionada}
       />
     </div>
