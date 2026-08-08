@@ -1,6 +1,13 @@
 import React, { useState, useMemo } from "react";
 import { useApp } from "../context/AppContext";
-import { BookOpen, Plus, Search, Users, Clock } from "lucide-react";
+import {
+  BookOpen,
+  Plus,
+  Search,
+  Users,
+  Clock,
+  CalendarRange,
+} from "lucide-react";
 
 import {
   obtenerNombreDocente,
@@ -12,6 +19,7 @@ import TutoriasTable from "./TutoriasTable";
 import ComisionFormModal from "../forms/ComisionFormModal";
 import TutoriaFormModal from "../forms/TutoriaFormModal";
 import ConfirmarEliminarModal from "../forms/ConfirmarEliminarModal";
+import GenerarCuatrimestre from "../forms/GenerarCuatrimestre";
 
 export default function AdminGestionAcademica() {
   const {
@@ -33,6 +41,7 @@ export default function AdminGestionAcademica() {
   const [modoEdicion, setModoEdicion] = useState(false);
   const [modalEliminar, setModalEliminar] = useState(false);
   const [itemSeleccionado, setItemSeleccionado] = useState(null);
+  const [modalCuatrimestre, setModalCuatrimestre] = useState(false);
 
   // Estados de carga
   const [guardando, setGuardando] = useState(false);
@@ -263,15 +272,26 @@ export default function AdminGestionAcademica() {
           </p>
         </div>
 
-        <button
-          onClick={abrirModalCrear}
-          className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-xs transition flex items-center justify-center gap-2 active:scale-95 cursor-pointer"
-        >
-          <Plus className="w-4 h-4" />
-          <span>
-            {tabActiva === "comisiones" ? "Nueva Comisión" : "Nueva Tutoría"}
-          </span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setModalCuatrimestre(true)}
+            title="Generar todos los eventos del cuatrimestre a partir de las comisiones y tutorías activas"
+            className="bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs px-4 py-2.5 rounded-xl border border-slate-200 shadow-xs transition flex items-center justify-center gap-2 active:scale-95 cursor-pointer"
+          >
+            <CalendarRange className="w-4 h-4 text-indigo-600" />
+            <span>Generar Cuatrimestre</span>
+          </button>
+
+          <button
+            onClick={abrirModalCrear}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-xs transition flex items-center justify-center gap-2 active:scale-95 cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>
+              {tabActiva === "comisiones" ? "Nueva Comisión" : "Nueva Tutoría"}
+            </span>
+          </button>
+        </div>
       </div>
 
       {/* PESTAÑAS Y BUSCADOR */}
@@ -370,6 +390,17 @@ export default function AdminGestionAcademica() {
         onCancel={() => setModalEliminar(false)}
         onConfirm={handleEliminar}
         eliminando={eliminando}
+      />
+
+      {/* MODAL GENERAR CUATRIMESTRE */}
+      <GenerarCuatrimestre
+        open={modalCuatrimestre}
+        onClose={() => setModalCuatrimestre(false)}
+        onSuccess={() => refreshDatos(true)}
+        comisiones={comisiones}
+        tutorias={tutorias}
+        usuarios={usuarios}
+        asistentes={usuarios.filter((u) => u.rol === "asistente")}
       />
     </div>
   );
