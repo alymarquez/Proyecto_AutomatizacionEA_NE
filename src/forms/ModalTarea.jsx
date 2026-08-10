@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   X,
   Loader2,
@@ -23,6 +23,26 @@ function ModalTarea({
   const [eliminando, setEliminando] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
+  const asistentesActivos = useMemo(() => {
+    return asistentes.filter((asistente) => {
+      if (asistente.activo === undefined && asistente.estado === undefined) {
+        return true;
+      }
+      const val = asistente.activo ?? asistente.estado;
+      return (
+        val === true ||
+        val === 1 ||
+        String(val).toLowerCase() === "true" ||
+        String(val).toLowerCase() === "activo"
+      );
+    });
+  }, [asistentes]);
+
+  // Set de IDs activos para un filtrado rápido en el useEffect
+  const idsActivosSet = useMemo(() => {
+    return new Set(asistentesActivos.map((a) => String(a.id_usuarios)));
+  }, [asistentesActivos]);
+
   const [form, setForm] = useState({
     titulo: "",
     descripcion: "",
@@ -38,15 +58,24 @@ function ModalTarea({
       document.body.style.overflow = "hidden";
 
       if (tareaAEditar) {
+        // Obtener los IDs guardados en la tarea
+        const idsOriginales = tareaAEditar.asistente_ids
+          ? String(tareaAEditar.asistente_ids)
+              .split(";")
+              .map((i) => i.trim())
+              .filter(Boolean)
+          : [];
+
+        // Deja ÚNICAMENTE los IDs de usuarios que sigan activos
+        const idsLimpios = idsOriginales.filter((id) => idsActivosSet.has(id));
+
         setForm({
           id: tareaAEditar.id_tareas,
           titulo: tareaAEditar.titulo || "",
           descripcion: tareaAEditar.descripcion || "",
           prioridad: tareaAEditar.prioridad || "media",
           columna: tareaAEditar.columna || "backlog",
-          asistente_ids: tareaAEditar.asistente_ids
-            ? String(tareaAEditar.asistente_ids)
-            : "",
+          asistente_ids: idsLimpios.join(";"), // Carga solo los asistentes activos
           fecha_limite: tareaAEditar.fecha_limite
             ? String(tareaAEditar.fecha_limite).split("T")[0]
             : "",
@@ -68,7 +97,7 @@ function ModalTarea({
     return () => {
       document.body.style.overflow = "unset";
     };
-  }, [isOpen, tareaAEditar]);
+  }, [isOpen, tareaAEditar, idsActivosSet]);
 
   if (!isOpen) return null;
 
@@ -129,7 +158,7 @@ function ModalTarea({
 
       if (data.ok) {
         if (esEdicion) {
-          onTareaEditada({...form, id_tareas: form.id,});
+          onTareaEditada({ ...form, id_tareas: form.id });
         } else {
           onTareaCreada(data.tarea);
         }
@@ -308,12 +337,12 @@ function ModalTarea({
 
               {dropdownOpen && (
                 <div className="p-1.5 max-h-52 overflow-y-auto divide-y divide-slate-100 bg-white custom-scrollbar transition-all">
-                  {asistentes.length === 0 ? (
+                  {asistentesActivos.length === 0 ? (
                     <div className="p-3 text-center text-[11px] font-medium text-slate-400">
-                      No hay asistentes en el sistema
+                      No hay asistentes activos disponibles
                     </div>
                   ) : (
-                    asistentes.map((asistente) => {
+                    asistentesActivos.map((asistente) => {
                       const isChecked = idsSeleccionados.includes(
                         String(asistente.id_usuarios),
                       );

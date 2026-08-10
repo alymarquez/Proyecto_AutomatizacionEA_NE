@@ -280,23 +280,25 @@ export default function AddEvento({
               <Users className="w-3.5 h-3.5 text-slate-400" /> Seleccionar Estudiantes Asistentes
             </label>
             <div className="flex flex-wrap gap-1.5 p-3.5 bg-white border border-slate-200 rounded-2xl max-h-40 overflow-y-auto shadow-3xs">
-              {asistentes.map((a) => {
-                const seleccionado = form.asistentes.includes(String(a.id_usuarios));
-                return (
-                  <button
-                    type="button"
-                    key={a.id}
-                    onClick={() => toggleAsistente(String(a.id_usuarios))}
-                    className={`text-[11px] font-bold px-3 py-1.5 rounded-xl border transition active:scale-95 ${
-                      seleccionado
-                        ? "bg-indigo-600 text-white border-indigo-600 shadow-3xs"
-                        : "bg-slate-50 text-slate-600 border-slate-200/80 hover:bg-slate-100"
-                    }`}
-                  >
-                    {a.nombre}
-                  </button>
-                );
-              })}
+              {asistentes
+                .filter((a) => a.activo === true)
+                .map((a) => {
+                  const seleccionado = form.asistentes.includes(String(a.id_usuarios));
+                  return (
+                    <button
+                      type="button"
+                      key={a.id}
+                      onClick={() => toggleAsistente(String(a.id_usuarios))}
+                      className={`text-[11px] font-bold px-3 py-1.5 rounded-xl border transition active:scale-95 ${
+                        seleccionado
+                          ? "bg-indigo-600 text-white border-indigo-600 shadow-3xs"
+                          : "bg-slate-50 text-slate-600 border-slate-200/80 hover:bg-slate-100"
+                      }`}
+                    >
+                      {a.nombre}
+                    </button>
+                  );
+                })}
             </div>
           </div>
 
