@@ -16,9 +16,7 @@ import {
 } from "lucide-react";
 
 import { obtenerNombreDocente, formatearHora, esRegistroActivo, obtenerSiguienteId } from "../utils/academicoUtils";
-import { parsearFechaLocal, generarEventosCuatrimestre } from "../utils/cuatrimestreUtils";
-
-const DIAS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+import { parsearFechaLocal, generarEventosCuatrimestre, DIAS_SEMANA } from "../utils/cuatrimestreUtils";
 
 const NORMALIZAR_TIPO = {
   comision: "Comision",
@@ -33,7 +31,6 @@ const ESTILOS_TIPO = {
 };
 
 export default function GenerarCuatrimestre({ open, onClose, onSuccess, comisiones = [], tutorias = [], usuarios = [], asistentes = [] }) {
-  // Extraemos recargarDatos (o cargarDatos) si tu context lo expone para revalidar la App
   const { API_URL, calendario = [], recargarDatos } = useApp();
 
   const [saving, setSaving] = useState(false);
@@ -56,8 +53,10 @@ export default function GenerarCuatrimestre({ open, onClose, onSuccess, comision
     asistentes: []
   });
 
+  // --- FILTRADO DE REGISTROS ACTIVOS ---
   const comisionesActivas = useMemo(() => comisiones.filter((c) => esRegistroActivo(c.activo)), [comisiones]);
   const tutoriasActivas = useMemo(() => tutorias.filter((t) => esRegistroActivo(t.activo)), [tutorias]);
+  const asistentesActivos = useMemo(() => asistentes.filter((a) => esRegistroActivo(a.activo)), [asistentes]);
 
   // Bloquea scroll del fondo mientras el modal está abierto
   useEffect(() => {
@@ -102,21 +101,29 @@ export default function GenerarCuatrimestre({ open, onClose, onSuccess, comision
 
   const toggleAsistenteComision = (id, asistenteId) =>
     setComisionesSel((prev) => {
-      const actual = prev[id]?.asistentes || [];
+      const estadoActual = prev[id] || { incluir: false, asistentes: [] };
+      const actual = estadoActual.asistentes || [];
       const yaEsta = actual.includes(asistenteId);
       return {
         ...prev,
-        [id]: { ...prev[id], asistentes: yaEsta ? actual.filter((a) => a !== asistenteId) : [...actual, asistenteId] }
+        [id]: {
+          ...estadoActual,
+          asistentes: yaEsta ? actual.filter((a) => a !== asistenteId) : [...actual, asistenteId]
+        }
       };
     });
 
   const toggleAsistenteTutoria = (id, asistenteId) =>
     setTutoriasSel((prev) => {
-      const actual = prev[id]?.asistentes || [];
+      const estadoActual = prev[id] || { incluir: false, asistentes: [] };
+      const actual = estadoActual.asistentes || [];
       const yaEsta = actual.includes(asistenteId);
       return {
         ...prev,
-        [id]: { ...prev[id], asistentes: yaEsta ? actual.filter((a) => a !== asistenteId) : [...actual, asistenteId] }
+        [id]: {
+          ...estadoActual,
+          asistentes: yaEsta ? actual.filter((a) => a !== asistenteId) : [...actual, asistenteId]
+        }
       };
     });
 
@@ -150,7 +157,6 @@ export default function GenerarCuatrimestre({ open, onClose, onSuccess, comision
 
     const siguienteId = obtenerSiguienteId(calendario, "id_calendario");
 
-    // Normalizamos el campo `tipo` al formatear los eventos
     return eventos.map((ev, idx) => {
       const tipoNormalizado = NORMALIZAR_TIPO[ev.tipo?.toLowerCase()] || ev.tipo;
       return {
@@ -225,22 +231,21 @@ export default function GenerarCuatrimestre({ open, onClose, onSuccess, comision
 
   const renderChipsAsistentes = (seleccionados, onToggle) => (
     <div className="flex flex-wrap gap-1 p-2.5 bg-white border border-slate-200 rounded-xl max-h-28 overflow-y-auto mt-2">
-      {asistentes.length === 0 && (
-        <span className="text-[10px] text-slate-400 italic">No hay asistentes disponibles.</span>
+      {asistentesActivos.length === 0 && (
+        <span className="text-[10px] text-slate-400 italic">No hay asistentes activos disponibles.</span>
       )}
-      {asistentes.map((a) => {
-        const idAsistente = String(a.id_usuarios || a.id);
+      {asistentesActivos.map((a, idx) => {
+        const idAsistente = String(a.id_usuarios || a.id || idx);
         const activo = seleccionados.includes(idAsistente);
         return (
           <button
             type="button"
             key={idAsistente}
             onClick={() => onToggle(idAsistente)}
-            className={`text-[10px] font-bold px-2.5 py-1 rounded-lg border transition active:scale-95 ${
-              activo
+            className={`text-[10px] font-bold px-2.5 py-1 rounded-lg border transition active:scale-95 ${activo
                 ? "bg-indigo-600 text-white border-indigo-600"
                 : "bg-slate-50 text-slate-600 border-slate-200/80 hover:bg-slate-100"
-            }`}
+              }`}
           >
             {a.nombre}
           </button>
@@ -437,7 +442,7 @@ export default function GenerarCuatrimestre({ open, onClose, onSuccess, comision
                         onChange={(e) => setReunion((prev) => ({ ...prev, dia: e.target.value }))}
                         className={inputStyles}
                       >
-                        {DIAS.map((d) => (
+                        {DIAS_SEMANA.map((d) => (
                           <option key={d} value={d}>
                             {d}
                           </option>
