@@ -1,285 +1,297 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useApp } from "../context/AppContext";
 import EditResponsablesTutorias from "../forms/EditResponsablesTutorias";
-import { BookOpen } from "lucide-react";
+import { BookOpen, Calendar, MapPin, Clock, Edit3, Users } from "lucide-react";
+
+// Función auxiliar para formatear la fecha sin importar si viene como ISO String o YYYY-MM-DD
+function formatearFechaLegible(fechaRaw) {
+  if (!fechaRaw) return "";
+  
+  // Si viene en formato ISO (ej: 2026-06-26T03:00:00.000Z)
+  const fechaLimpia = String(fechaRaw).split("T")[0]; // "2026-06-26"
+  const partes = fechaLimpia.split("-");
+  
+  if (partes.length === 3) {
+    const [anio, mes, dia] = partes;
+    return `${dia}/${mes}/${anio}`;
+  }
+  
+  return fechaRaw;
+}
 
 function Tutorias() {
   const [semanaSeleccionada, setSemanaSeleccionada] = useState(1);
   const [tutoriaSeleccionada, setTutoriaSeleccionada] = useState(null);
   const [modalAbierto, setModalAbierto] = useState(false);
-  
 
-  const { tutorias, eventos, usuarios, loading, API_URL, actualizarEventoLocal, } = useApp();
+  const { tutorias = [], eventos = [], usuarios = [], loading, API_URL, actualizarEventoLocal } = useApp();
+
+  // filtra los eventos de tipo Tutoría
+  const eventosTutorias = useMemo(() => {
+    return eventos.filter((e) => {
+      const tipoLimpio = String(e.tipo || "")
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .trim();
+      return tipoLimpio === "tutoria";
+    });
+  }, [eventos]);
+
+  // extrae semanas únicas válidas y ordenadas
+  const semanas = useMemo(() => {
+    const setSemanas = new Set(
+      eventosTutorias
+        .map((e) => parseInt(e.semana, 10))
+        .filter((s) => !isNaN(s) && s > 0)
+    );
+    return Array.from(setSemanas).sort((a, b) => a - b);
+  }, [eventosTutorias]);
+
+  // ajusta semana por defecto si cambia la lista de semanas
+  useEffect(() => {
+    if (semanas.length > 0 && !semanas.includes(semanaSeleccionada)) {
+      setSemanaSeleccionada(semanas[0]);
+    }
+  }, [semanas]);
+
+  // mapea las tutorías de la semana seleccionada
+  const tutoriasFiltradas = useMemo(() => {
+    return eventosTutorias
+      .filter((item) => parseInt(item.semana, 10) === Number(semanaSeleccionada))
+      .map((item) => {
+        const info = tutorias.find(
+          (t) => Number(t.id_tutorias || t.id) === Number(item.referencia_id)
+        );
+
+        const idsAsistentes = String(item.asistente_id || "")
+          .split(";")
+          .map((s) => s.trim())
+          .filter(Boolean);
+
+        const responsables = Array.from(
+          new Set(
+            idsAsistentes
+              .map((id) => usuarios.find((u) => Number(u.id_usuarios || u.id) === Number(id))?.nombre)
+              .filter(Boolean)
+          )
+        );
+
+        return {
+          ...item,
+          id_unico: item.id_calendario || item.id,
+          fecha: formatearFechaLegible(item.fecha),
+          semana: Number(item.semana),
+          dia: info?.dia || item.dia || "",
+          hora: info?.horario || item.hora || "",
+          aula: info?.aula || item.aula || "",
+          responsables
+        };
+      });
+  }, [eventosTutorias, semanaSeleccionada, tutorias, usuarios]);
+
+  const totalResponsables = useMemo(() => {
+    return tutoriasFiltradas.reduce((acc, t) => acc + t.responsables.length, 0);
+  }, [tutoriasFiltradas]);
 
   if (loading) {
-    return <div className="p-10">Cargando tutorías...</div>;
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <p className="text-sm font-semibold text-slate-500 animate-pulse">Cargando tutorías...</p>
+      </div>
+    );
   }
 
   const abrirEditor = (tutoria) => {
-      setTutoriaSeleccionada(tutoria);
-      setModalAbierto(true);
-    };
-
-  const eventosTutorias = eventos.filter(
-    e => e.tipo === "Tutoria"
-  );
-
-  const tutoriasFiltradas = eventosTutorias
-  .filter(item => Number(item.semana) === semanaSeleccionada)
-  .map(item => {
-
-    const info = tutorias.find(
-      t => Number(t.id_tutorias) === Number(item.referencia_id)
-    );
-
-    const responsables = [
-      ...new Set(
-        String(item.asistente_id || "")
-          .split(";")
-          .filter(Boolean)
-          .map(id =>
-            usuarios.find(a => Number(a.id_usuarios) === Number(id))?.nombre
-          )
-          .filter(Boolean)
-      )
-    ];
-
-    return {
-      ...item,
-
-      fecha: new Date(item.fecha).toLocaleDateString("es-AR"),
-      fechaReal: new Date(item.fecha),
-
-      semana: Number(item.semana),
-
-      dia: info?.dia || "",
-      hora: info?.horario
-        ? new Date(info.horario).toLocaleTimeString("es-AR", {
-          hour: "2-digit",
-          minute: "2-digit",
-          hour12: false,
-        })
-      : "",
-      aula: info?.aula || "",
-
-      responsables
-    };
-  });
-
-  const semanas = [
-    ...new Set(
-        eventosTutorias.map(e => Number(e.semana))
-    )
-].sort((a,b)=>a-b);
-
-
-  const totalResponsables = tutoriasFiltradas.reduce(
-    (acc, t) => acc + t.responsables.length,
-    0
-  );
+    setTutoriaSeleccionada(tutoria);
+    setModalAbierto(true);
+  };
 
   return (
-  <div className="max-w-7xl mx-auto px-8 py-10">
-
-    {/* HEADER */}
-    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200/60 pb-6 mb-6">
-      <div className="flex items-center gap-3.5">
-        <div className="p-2.5 bg-white text-slate-800 rounded-2xl border border-slate-200 shadow-xs">
-            <BookOpen className="w-5 h-5 text-slate-700" />
-        </div>
-        <div>
-          <h1 className="text-xl font-black text-slate-900 tracking-tight leading-none">
-            Tutorías Presenciales
-          </h1>
-
-          <span className="text-[10px] font-bold text-slate-400 tracking-wider uppercase mt-1.5 block">
-            Organización semanal de tutorías y asignación de estudiantes asistentes.
-          </span>
+    <div className="max-w-7xl mx-auto px-4 sm:px-8 py-10">
+      {/* HEADER */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200/60 pb-6 mb-6">
+        <div className="flex items-center gap-3.5">
+          <div className="p-2.5 bg-white text-slate-800 rounded-2xl border border-slate-200 shadow-xs">
+            <BookOpen className="w-5 h-5 text-indigo-600" />
+          </div>
+          <div>
+            <h1 className="text-xl font-black text-slate-900 tracking-tight leading-none">
+              Tutorías Presenciales
+            </h1>
+            <span className="text-[10px] font-bold text-slate-400 tracking-wider uppercase mt-1.5 block">
+              Organización semanal de tutorías y asignación de estudiantes asistentes
+            </span>
+          </div>
         </div>
       </div>
 
-      
-    </div>
-
-    {/* RESUMEN */}
-    <div className="bg-slate-100/40 rounded-2xl shadow-md border border-slate-200/40 p-6 mb-8">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-
-        <div className="flex flex-col justify-center items-center">
-          <label className="text-[11px] uppercase font-bold text-slate-400 tracking-wider flex items-center gap-1.5 mb-1.5">
-            Semana seleccionada
-          </label>
-
-          <select
-            value={semanaSeleccionada}
-            onChange={(e) => setSemanaSeleccionada(Number(e.target.value))}
-            className="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs text-slate-800 font-medium tracking-tight outline-none transition focus:ring-2 focus:ring-indigo-400 focus:border-transparent placeholder:text-slate-400 shadow-3xs"
-          >
-            {semanas.map((semana) => (
-              <option key={semana} value={semana}>
-                Semana {semana}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="flex flex-col justify-center items-center">
-          <p className="text-[11px] uppercase font-bold text-slate-400 tracking-wider flex items-center gap-1.5 mb-1.5">Tutorías</p>
-          <p className="text-3xl font-bold text-indigo-600">
-            {tutoriasFiltradas.length}
-          </p>
-        </div>
-
-        <div className="flex flex-col justify-center items-center">
-          <p className="text-[11px] uppercase font-bold text-slate-400 tracking-wider flex items-center gap-1.5 mb-1.5">Responsables asignados</p>
-          <p className="text-3xl font-bold text-green-600">
-            {totalResponsables}
-          </p>
-        </div>
-
-      </div>
-    </div>
-
-    {/* TITULO */}
-    <div className="mb-6">
-      <h2 className="text-xl font-black text-slate-900 tracking-tight leading-none">
-        Semana {semanaSeleccionada}
-      </h2>
-    </div>
-
-    {/* TARJETAS */}
-    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-
-      {tutoriasFiltradas.map((tutoria) => (
-
-        <div
-          key={tutoria.id}
-          className="bg-white rounded-2xl shadow-md border border-gray-200 overflow-hidden"
-        >
-
-          <div className="bg-indigo-600 text-white px-5 py-4">
-            <div className="flex justify-between items-center">
-
-              <h3 className="text-lg uppercase font-bold text-white tracking-wider flex items-center gap-1.5 mb-1.5">
-                {tutoria.dia}
-              </h3>
-
-              <span className="text-white">
-                {tutoria.aula}
-              </span>
-
-            </div>
+      {/* RESUMEN */}
+      <div className="bg-slate-100/50 rounded-2xl border border-slate-200/60 p-6 mb-8 shadow-xs">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="flex flex-col justify-center items-center bg-white p-4 rounded-xl border border-slate-200/60">
+            <label className="text-[11px] uppercase font-bold text-slate-400 tracking-wider flex items-center gap-1.5 mb-1.5">
+              Semana seleccionada
+            </label>
+            <select
+              value={semanaSeleccionada}
+              onChange={(e) => setSemanaSeleccionada(Number(e.target.value))}
+              className="w-full max-w-[200px] bg-slate-50 border border-slate-200 rounded-xl p-2 text-xs text-slate-800 font-bold tracking-tight outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              {semanas.length === 0 ? (
+                <option value={1}>Semana 1</option>
+              ) : (
+                semanas.map((semana) => (
+                  <option key={`semana-opt-${semana}`} value={semana}>
+                    Semana {semana}
+                  </option>
+                ))
+              )}
+            </select>
           </div>
 
-          <div className="p-6">
+          <div className="flex flex-col justify-center items-center bg-white p-4 rounded-xl border border-slate-200/60">
+            <p className="text-[11px] uppercase font-bold text-slate-400 tracking-wider mb-1">
+              Tutorías
+            </p>
+            <p className="text-3xl font-black text-indigo-600">{tutoriasFiltradas.length}</p>
+          </div>
 
-            <div className="space-y-3 text-gray-700 mb-6">
+          <div className="flex flex-col justify-center items-center bg-white p-4 rounded-xl border border-slate-200/60">
+            <p className="text-[11px] uppercase font-bold text-slate-400 tracking-wider mb-1">
+              Responsables asignados
+            </p>
+            <p className="text-3xl font-black text-emerald-600">{totalResponsables}</p>
+          </div>
+        </div>
+      </div>
 
-              <p>
-                <strong>Fecha:</strong> {tutoria.fecha}
-              </p>
+      {/* TITULO SECCIÓN */}
+      <div className="mb-6">
+        <h2 className="text-lg font-black text-slate-900 tracking-tight">
+          Semana {semanaSeleccionada}
+        </h2>
+      </div>
 
-              <p>
-                <strong>Horario:</strong> {tutoria.hora}
-              </p>
-
-            </div>
-
-            <div>
-              <div className="flex justify-between items-center mb-2">
-
-                <h4 className="font-semibold text-gray-800">
-                  Responsables
-                </h4>
-              
-                <button
-                  className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-400 bg-white text-gray-600 hover:text-indigo-800 hover:border-indigo-400 transition"
-                  onClick={() => abrirEditor(tutoria)}
-                >
-                  ✎
-                </button>
-
+      {/* TARJETAS */}
+      {tutoriasFiltradas.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-dashed border-slate-300 p-8 text-center text-slate-400 text-xs font-medium">
+          No hay tutorías programadas para la Semana {semanaSeleccionada}.
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+          {tutoriasFiltradas.map((tutoria) => (
+            <div
+              key={`tutoria-card-${tutoria.id_unico}`}
+              className="bg-white rounded-2xl shadow-xs border border-slate-200/80 overflow-hidden flex flex-col justify-between"
+            >
+              {/* CARD HEADER */}
+              <div className="bg-indigo-600 text-white px-5 py-3.5 flex justify-between items-center">
+                <h3 className="text-sm font-black uppercase tracking-wider flex items-center gap-1.5">
+                  {tutoria.dia}
+                </h3>
+                <span className="text-xs font-bold bg-indigo-700/60 px-2.5 py-1 rounded-lg border border-indigo-400/30 flex items-center gap-1">
+                  <MapPin className="w-3 h-3" /> {tutoria.aula || "S/A"}
+                </span>
               </div>
 
-              <div className="bg-gray-100 rounded-xl p-3 min-h-[110px]">
+              {/* CARD BODY */}
+              <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
+                <div className="space-y-2 text-xs text-slate-600 font-medium">
+                  {tutoria.fecha && (
+                    <p className="flex items-center gap-2">
+                      <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                      <span><strong>Fecha:</strong> {tutoria.fecha}</span>
+                    </p>
+                  )}
+                  {tutoria.hora && (
+                    <p className="flex items-center gap-2">
+                      <Clock className="w-3.5 h-3.5 text-slate-400" />
+                      <span><strong>Horario:</strong> {tutoria.hora}</span>
+                    </p>
+                  )}
+                </div>
 
-                {tutoria.responsables.length ? (
-
-                  <div className="flex flex-wrap gap-2">
-
-                    {tutoria.responsables.map((persona) => (
-
-                      <span
-                        key={persona}
-                        className="px-4 py-2 bg-white border border-gray-200 rounded-full text-sm font-medium text-gray-700 shadow-sm"
-                      >
-                        {persona}
-                      </span>
-
-                    ))}
-
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <h4 className="text-xs font-extrabold text-slate-700 flex items-center gap-1">
+                      <Users className="w-3.5 h-3.5 text-slate-400" /> Responsables
+                    </h4>
+                    <button
+                      type="button"
+                      className="p-1.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-600 hover:text-indigo-600 hover:border-indigo-300 transition active:scale-95"
+                      onClick={() => abrirEditor(tutoria)}
+                      title="Editar responsables"
+                    >
+                      <Edit3 className="w-3.5 h-3.5" />
+                    </button>
                   </div>
 
-                ) : (
-
-                  <span className="text-gray-400">
-                    Sin responsables asignados
-                  </span>
-
-                )}
-
+                  <div className="bg-slate-50 rounded-xl p-3 min-h-[90px] border border-slate-100 flex items-center">
+                    {tutoria.responsables.length ? (
+                      <div className="flex flex-wrap gap-1.5">
+                        {tutoria.responsables.map((persona) => (
+                          <span
+                            key={persona}
+                            className="px-2.5 py-1 bg-white border border-slate-200/80 rounded-lg text-xs font-bold text-slate-700 shadow-2xs"
+                          >
+                            {persona}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-xs text-slate-400 italic">
+                        Sin responsables asignados
+                      </span>
+                    )}
+                  </div>
+                </div>
               </div>
-
             </div>
-
-            
-
-          </div>
-
+          ))}
         </div>
+      )}
 
-      ))}
+      {/* MODAL DE EDICIÓN */}
+      <EditResponsablesTutorias
+        abierto={modalAbierto}
+        tutoria={tutoriaSeleccionada}
+        responsablesActuales={tutoriaSeleccionada?.responsables || []}
+        onClose={() => setModalAbierto(false)}
+        onGuardar={async (seleccionados) => {
+          try {
+            const asistentesTexto = seleccionados.join(";");
 
-    </div>
+            const res = await fetch(API_URL, {
+              method: "POST",
+              headers: { "Content-Type": "text/plain;charset=utf-8" },
+              body: JSON.stringify({
+                accion: "editar_responsables_tutoria",
+                id: tutoriaSeleccionada?.id_unico,
+                asistentes: asistentesTexto
+              })
+            });
 
-    <EditResponsablesTutorias
-      abierto={modalAbierto}
-      tutoria={tutoriaSeleccionada}
-      responsablesActuales={tutoriaSeleccionada?.responsables || []}
-      onClose={() => setModalAbierto(false)}
-      onGuardar={async (seleccionados) => {
-        try {
-          const asistentesTexto = seleccionados.join(";");
+            const data = await res.json();
 
-          const res = await fetch(API_URL, {
-            method: "POST",
-            body: JSON.stringify({
-              accion: "editar_responsables_tutoria",
-              id: tutoriaSeleccionada.id_calendario,
-              asistentes: asistentesTexto,
-            }),
-          });
+            if (!data.ok) {
+              alert(data.mensaje || "Error al guardar los responsables");
+              return;
+            }
 
-          const data = await res.json();
+            if (typeof actualizarEventoLocal === "function") {
+              await actualizarEventoLocal(data.evento);
+            }
 
-          if (!data.ok) {
-            alert("Error al guardar");
-            return;
+            setModalAbierto(false);
+          } catch (error) {
+            console.error("Error al actualizar responsables:", error);
+            alert("No se pudo guardar la modificación.");
           }
-
-          await actualizarEventoLocal(data.evento);
-
-          setModalAbierto(false);
-
-        } catch (error) {
-          console.error(error);
-          alert("No se pudo guardar");
-        }
-      }}
-    />
-
-  </div>
-);
+        }}
+      />
+    </div>
+  );
 }
 
 export default Tutorias;

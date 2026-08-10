@@ -20,6 +20,12 @@ import { parsearFechaLocal, generarEventosCuatrimestre } from "../utils/cuatrime
 
 const DIAS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
 
+const NORMALIZAR_TIPO = {
+  comision: "Comision",
+  tutoria: "Tutoria",
+  reunion: "Reunion"
+};
+
 const ESTILOS_TIPO = {
   Comision: "bg-blue-50 text-blue-700 border-blue-200",
   Tutoria: "bg-purple-50 text-purple-700 border-purple-200",
@@ -27,7 +33,8 @@ const ESTILOS_TIPO = {
 };
 
 export default function GenerarCuatrimestre({ open, onClose, onSuccess, comisiones = [], tutorias = [], usuarios = [], asistentes = [] }) {
-  const { API_URL, calendario = [] } = useApp();
+  // Extraemos recargarDatos (o cargarDatos) si tu context lo expone para revalidar la App
+  const { API_URL, calendario = [], recargarDatos } = useApp();
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -141,19 +148,17 @@ export default function GenerarCuatrimestre({ open, onClose, onSuccess, comision
       reunion
     });
 
-    console.log("=== EVENTOS GENERADOS ===", eventos);
-
-    console.table(
-      eventos.map((ev) => ({
-        fecha: ev.fecha,
-        tipo: ev.tipo,
-        titulo: ev.titulo,
-        semana: ev.semana
-      }))
-    );
-
     const siguienteId = obtenerSiguienteId(calendario, "id_calendario");
-    return eventos.map((ev, idx) => ({ id_calendario: siguienteId + idx, ...ev }));
+
+    // Normalizamos el campo `tipo` al formatear los eventos
+    return eventos.map((ev, idx) => {
+      const tipoNormalizado = NORMALIZAR_TIPO[ev.tipo?.toLowerCase()] || ev.tipo;
+      return {
+        ...ev,
+        id_calendario: siguienteId + idx,
+        tipo: tipoNormalizado
+      };
+    });
   }, [fechaInicio, fechaFin, comisionesActivas, tutoriasActivas, comisionesSel, tutoriasSel, reunion, calendario]);
 
   const conteoPorTipo = useMemo(() => {
@@ -181,18 +186,28 @@ export default function GenerarCuatrimestre({ open, onClose, onSuccess, comision
 
     try {
       setSaving(true);
+
+      const eventosAEnviar = eventosGenerados.map((ev) => ({
+        ...ev,
+        tipo: NORMALIZAR_TIPO[ev.tipo?.toLowerCase()] || ev.tipo
+      }));
+
       const res = await fetch(API_URL, {
         method: "POST",
         mode: "cors",
         redirect: "follow",
         headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify({ accion: "generar_cuatrimestre", eventos: eventosGenerados })
+        body: JSON.stringify({ accion: "generar_cuatrimestre", eventos: eventosAEnviar })
       });
 
       const data = await res.json();
       if (!data.ok) throw new Error(data.mensaje || data.error || "No se pudo generar el cuatrimestre");
 
-      onSuccess();
+      if (typeof recargarDatos === "function") {
+        await recargarDatos();
+      }
+
+      if (onSuccess) onSuccess();
       onClose();
     } catch (err) {
       console.error("Error al generar cuatrimestre:", err);

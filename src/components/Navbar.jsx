@@ -8,7 +8,8 @@ import {
   ClipboardList, 
   Menu, 
   X,
-  Kanban
+  Kanban,
+  UserCog,
 } from "lucide-react";
 
 function Navbar() {
@@ -83,6 +84,11 @@ function Navbar() {
             <Link to="/minutas" className={linkStyles("/minutas")}>
               <ClipboardList className="w-3.5 h-3.5 shrink-0" />
               <span>Minutas</span>
+            </Link>
+
+            <Link to="/admin" className={linkStyles("/admin")}>
+              <UserCog className="w-3.5 h-3.5 shrink-0" />
+              <span>Admin</span>
             </Link>
           </div>
 
