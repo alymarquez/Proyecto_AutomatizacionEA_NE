@@ -7,6 +7,7 @@ import Minutas from "./pages/Minutas";
 import Comisiones from "./pages/Comisiones";
 import TareasTablero from "./pages/TareasTablero";
 import Tutorias from "./pages/Tutorias";
+import Admin from "./pages/Admin";
 
 function App() {
   return (
@@ -19,6 +20,7 @@ function App() {
             <Route path="comisiones" element={<Comisiones />} />
             <Route path="tareas" element={<TareasTablero />} />
             <Route path="tutorias" element={<Tutorias />} />
+            <Route path="/admin" element={<Admin />} />
           </Route>
         </Routes>
       </BrowserRouter>
