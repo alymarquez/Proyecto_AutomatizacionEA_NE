@@ -7,11 +7,19 @@ import StarterKit from "@tiptap/starter-kit";
 
 
 function EditMinuta({ minuta, onClose, onSave }) {
-  const [seleccionados, setSeleccionados] = useState(
+  /*const [seleccionados, setSeleccionados] = useState(
         minuta.participantes
         ? minuta.participantes.split(";").map(Number)
         : []
-    );
+    );*/
+
+  const [seleccionados, setSeleccionados] = useState(
+    Array.isArray(minuta.participantes)
+      ? minuta.participantes.map(Number)
+      : minuta.participantes
+        ? String(minuta.participantes).split(";").map(Number)
+        : []
+  );
   const [guardando, setGuardando] = useState(false);
   const { usuarios } = useApp();
   

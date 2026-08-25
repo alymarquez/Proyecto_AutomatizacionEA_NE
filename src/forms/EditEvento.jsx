@@ -35,7 +35,7 @@ export default function EditEvento({
   const [saving, setSaving] = useState(false);
   const [errores, setErrores] = useState({ tipo: false, fecha: false });
 
-  const { editarEvento, refreshDatos } = useApp();
+  const { editarEvento, eliminarEvento, refreshDatos } = useApp();
 
   const [form, setForm] = useState({
     id: "",
@@ -149,8 +149,35 @@ onSuccess();
     }
   };
 
-  const eliminarEvento = async () => {
-    alert("Todavía no implementado");
+  const eliminarEventoLocal = async () => {
+
+  // Comisión y tutoría no se pueden eliminar desde este formulario
+  if (esEventoFijo) return;
+
+  const confirmar = window.confirm(
+    `¿Seguro que querés eliminar el evento "${form.titulo_manual || evento.titulo}"?\n\nEsta acción no se puede deshacer.`
+  );
+
+  if (!confirmar) return;
+
+  try {
+
+    setSaving(true);
+
+    await eliminarEvento(form.id);
+
+    onSuccess();
+
+  } catch (err) {
+
+    console.error(err);
+    alert("No se pudo eliminar el evento");
+
+  } finally {
+
+    setSaving(false);
+
+  }
 };
     /*const confirmar = window.confirm(
         `¿Seguro que querés eliminar el evento "${form.titulo_manual || evento.titulo}"?\n\nEsta acción no se puede deshacer.`
@@ -406,8 +433,8 @@ onSuccess();
           {/* BOTÓN ELIMINAR */}
           <button
             type="button"
-            onClick={eliminarEvento}
-            disabled={saving}
+            onClick={eliminarEventoLocal}
+            disabled={saving || esEventoFijo}
             className="bg-rose-50 hover:bg-rose-100/80 disabled:bg-slate-100 text-rose-600 disabled:text-slate-400 text-xs font-bold py-2.5 px-4 rounded-xl border border-rose-100/70 disabled:border-slate-200 transition flex justify-center items-center gap-1.5 active:scale-[0.98]"
           >
             <Trash2 className="w-3.5 h-3.5" />
