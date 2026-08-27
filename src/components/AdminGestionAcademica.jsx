@@ -7,6 +7,7 @@ import {
   Users,
   Clock,
   CalendarRange,
+  Trash2,
 } from "lucide-react";
 
 import {
@@ -27,6 +28,7 @@ export default function AdminGestionAcademica() {
     tutorias = [],
     usuarios = [],
     refreshDatos,
+    eliminarTodosEventos,
     API_URL,
   } = useApp();
 
@@ -257,6 +259,26 @@ export default function AdminGestionAcademica() {
     }
   };
 
+  const handleEliminarCuatrimestre = async () => {
+  const confirmar = window.confirm(
+    "¿Está seguro de que desea eliminar todos los eventos del calendario?"
+  );
+
+  if (!confirmar) return;
+
+  try {
+    await eliminarTodosEventos();
+
+    alert("Todos los eventos del calendario fueron eliminados correctamente.");
+  } catch (error) {
+    console.error("Error al eliminar el cuatrimestre:", error);
+
+    alert(
+      error.message || "No se pudieron eliminar los eventos del calendario."
+    );
+  }
+};
+
   return (
     <div className="max-w-6xl mx-auto p-4 tracking-tight">
       {/* HEADER DE LA SECCIÓN */}
@@ -280,6 +302,15 @@ export default function AdminGestionAcademica() {
           >
             <CalendarRange className="w-4 h-4 text-indigo-600" />
             <span>Generar Cuatrimestre</span>
+          </button>
+
+          <button
+            onClick={handleEliminarCuatrimestre}
+            title="Eliminar todos los eventos del calendario"
+            className="bg-white hover:bg-rose-50 text-rose-600 font-bold text-xs px-4 py-2.5 rounded-xl border border-rose-200 shadow-xs transition flex items-center justify-center gap-2 active:scale-95 cursor-pointer"
+          >
+            <Trash2 className="w-4 h-4" />
+            <span>Eliminar Cuatrimestre</span>
           </button>
 
           <button
