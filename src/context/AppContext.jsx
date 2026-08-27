@@ -13,6 +13,7 @@ export function AppProvider({ children }) {
     tutorias: [],
     tareas: [],
     minutas: [],
+    registroTutorias: [],
     totalMinutas: 0,
     paginaMinutas: 1,
   });
@@ -43,6 +44,7 @@ export function AppProvider({ children }) {
         comisiones: data.comisiones || [],
         tutorias: data.tutorias || [],
         tareas: data.tareas || [],
+        registroTutorias: data.registroTutorias || [],
         calendario: data.calendario || [],      
         minutas: data.minutas.minutas || [],
         totalMinutas: data.minutas.total || 0,
@@ -189,6 +191,28 @@ const actualizarMinutaLocal = (minutaActualizada) => {
   setAutorizacionLoading(false);
 }, [usuarioFirebase, authLoading, loading, datosGlobales.usuarios]);*/
 
+
+const agregarRegistroTutoriaLocal = (nuevoRegistro) => {
+  setDatosGlobales(prev => ({
+    ...prev,
+    registroTutorias: [
+      nuevoRegistro,
+      ...prev.registroTutorias
+    ]
+  }));
+};
+
+const editarRegistroTutoriaLocal = (registroModificado) => {
+  setDatosGlobales(prev => ({
+    ...prev,
+    registroTutorias: prev.registroTutorias.map(registro =>
+      Number(registro.id) === Number(registroModificado.id)
+        ? registroModificado
+        : registro
+    )
+  }));
+};
+
   return (
     <AppContext.Provider value={{ 
       ...datosGlobales, 
@@ -205,6 +229,8 @@ const actualizarMinutaLocal = (minutaActualizada) => {
       actualizarEventoLocal,
       editarEvento,
       eliminarEvento,
+      agregarRegistroTutoriaLocal,
+      editarRegistroTutoriaLocal,
       agregarMinutaLocal,
       actualizarMinutaLocal
     }}>
