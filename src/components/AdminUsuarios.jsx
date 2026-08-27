@@ -278,99 +278,140 @@ export default function AdminUsuarios() {
         </div>
       </div>
 
-      {/* TABLA DE USUARIOS */}
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-2xs overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">
-                <th className="py-3 px-4">ID</th>
-                <th className="py-3 px-4">Usuario</th>
-                <th className="py-3 px-4">DNI / Tel</th>
-                <th className="py-3 px-4">Rol</th>
-                <th className="py-3 px-4">Carrera</th>
-                <th className="py-3 px-4">Estado</th>
-                <th className="py-3 px-4 text-right">Acciones</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 text-xs font-medium text-slate-700">
-              {usuariosFiltrados.length > 0 ? (
-                usuariosFiltrados.map((usr, i) => {
-                  const idUnico = usr.id_usuarios || usr.id || i;
-                  const esActivo = usr.activo === true || usr.activo === "TRUE" || usr.activo === "activo";
+      {/* TARJETAS DE USUARIOS */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        {usuariosFiltrados.length > 0 ? (
+          usuariosFiltrados.map((usr, i) => {
+            const idUnico = usr.id_usuarios || usr.id || i;
+            const esActivo =
+              usr.activo === true ||
+              usr.activo === "TRUE" ||
+              usr.activo === "activo";
 
-                  return (
-                    <tr key={idUnico} className="hover:bg-slate-50/60 transition">
-                      <td className="py-3 px-4 font-mono text-[11px] text-slate-400 font-bold">
-                        #{usr.id_usuarios || usr.id || "-"}
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="font-bold text-slate-800">
-                          {usr.apellido || ""} {usr.nombre || "Sin nombre"}
-                        </div>
-                        <div className="text-[11px] text-slate-400 font-mono">{usr.email || "Sin email"}</div>
-                      </td>
-                      <td className="py-3 px-4 text-[11px]">
-                        <div>DNI: {usr.dni || "-"}</div>
-                        <div className="text-slate-400">Tel: {usr.tel || "-"}</div>
-                      </td>
-                      <td className="py-3 px-4">
-                        <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full border capitalize ${
-                          (usr.rol || "").toLowerCase().includes("admin")
-                            ? "bg-purple-50 text-purple-700 border-purple-200"
-                            : (usr.rol || "").toLowerCase().includes("docente")
-                            ? "bg-blue-50 text-blue-700 border-blue-200"
-                            : "bg-slate-50 text-slate-600 border-slate-200"
-                        }`}>
-                          {(usr.rol || "").toLowerCase().includes("admin") && <ShieldCheck className="w-3 h-3 text-purple-600" />}
-                          {usr.rol || "Asistente"}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-[11px] text-slate-500 max-w-[150px] truncate">
-                        {usr.carrera_1 || usr.carrera_2 || "-"}
-                      </td>
-                      <td className="py-3 px-4">
-                        {!esActivo ? (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-rose-600 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-md">
-                            <XCircle className="w-3 h-3" /> Inactivo
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
-                            <CheckCircle2 className="w-3 h-3" /> Activo
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            onClick={() => abrirModalEditar(usr)}
-                            title="Editar usuario"
-                            className="p-1.5 bg-slate-50 hover:bg-indigo-50 text-slate-500 hover:text-indigo-600 border border-slate-200 rounded-lg transition cursor-pointer"
-                          >
-                            <Pencil className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={() => abrirModalEliminar(usr)}
-                            title="Eliminar usuario"
-                            className="p-1.5 bg-slate-50 hover:bg-rose-50 text-slate-500 hover:text-rose-600 border border-slate-200 rounded-lg transition cursor-pointer"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
+          return (
+            <div
+              key={idUnico}
+              className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-2xs"
+            >
+          {/* CABECERA */}
+            <div className="bg-slate-50 border-b border-slate-200 px-4 py-3 flex items-center justify-between">
+              <span className="font-mono text-[11px] text-slate-400 font-bold">
+                #{usr.id_usuarios || usr.id || "-"}
+              </span>
+
+              {!esActivo ? (
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-rose-600 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-md">
+                  <XCircle className="w-3 h-3" />
+                  Inactivo
+                </span>
               ) : (
-                <tr>
-                  <td colSpan="7" className="text-center py-8 text-slate-400 italic text-xs">
-                    No se encontraron usuarios coincidentes.
-                  </td>
-                </tr>
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
+                  <CheckCircle2 className="w-3 h-3" />
+                  Activo
+                </span>
               )}
-            </tbody>
-          </table>
-        </div>
+            </div>
+
+          {/* CONTENIDO */}
+            <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
+
+              {/* DATOS PERSONALES */}
+              <div className="space-y-2 text-xs text-slate-600 font-medium">
+                <div>
+                  <p className="font-bold text-slate-800">
+                    {usr.apellido || ""} {usr.nombre || "Sin nombre"}
+                  </p>
+
+                  <p className="text-[11px] text-slate-400 font-mono truncate">
+                    {usr.email || "Sin email"}
+                  </p>
+                </div>
+
+                <div className="pt-2 border-t border-slate-100 space-y-1">
+                  <p>
+                    <strong>DNI:</strong> {usr.dni || "-"}
+                  </p>
+
+                  <p>
+                    <strong>Tel:</strong> {usr.tel || "-"}
+                  </p>
+                </div>
+              </div>
+
+              {/* ROL */}
+              <div>
+                <h4 className="text-xs font-extrabold text-slate-700 mb-2">
+                  Rol
+                </h4>
+
+                <span
+                  className={`inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full border capitalize ${
+                    (usr.rol || "").toLowerCase().includes("admin")
+                      ? "bg-purple-50 text-purple-700 border-purple-200"
+                      : (usr.rol || "").toLowerCase().includes("docente")
+                      ? "bg-blue-50 text-blue-700 border-blue-200"
+                      : "bg-slate-50 text-slate-600 border-slate-200"
+                  }`}
+                >
+                  {(usr.rol || "").toLowerCase().includes("admin") && (
+                    <ShieldCheck className="w-3 h-3 text-purple-600" />
+                  )}
+
+                  {usr.rol || "Asistente"}
+                </span>
+              </div>
+
+              {/* CARRERA */}
+              <div>
+                <h4 className="text-xs font-extrabold text-slate-700 mb-2">
+                  Carrera
+                </h4>
+
+                <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 min-h-[45px] flex items-center">
+                  <div className="text-xs text-slate-600 space-y-1">
+                    {usr.carrera_1 && (
+                      <p>{usr.carrera_1}</p>
+                    )}
+
+                    {usr.carrera_2 && (
+                      <p>{usr.carrera_2}</p>
+                    )}
+
+                    {!usr.carrera_1 && !usr.carrera_2 && (
+                      <p>-</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* ACCIONES */}
+              <div className="flex items-center justify-end gap-1.5 pt-2 border-t border-slate-100">
+                <button
+                  onClick={() => abrirModalEditar(usr)}
+                  title="Editar usuario"
+                  className="p-1.5 bg-slate-50 hover:bg-indigo-50 text-slate-500 hover:text-indigo-600 border border-slate-200 rounded-lg transition cursor-pointer"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                </button>
+
+                <button
+                  onClick={() => abrirModalEliminar(usr)}
+                  title="Eliminar usuario"
+                  className="p-1.5 bg-slate-50 hover:bg-rose-50 text-slate-500 hover:text-rose-600 border border-slate-200 rounded-lg transition cursor-pointer"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+            </div>
+          </div>
+          );
+        })
+        ) : (
+          <div className="col-span-full text-center py-8 text-slate-400 italic text-xs">
+            No se encontraron usuarios coincidentes.
+          </div>
+        )}
       </div>
 
       {/* MODAL CREAR / EDITAR */}

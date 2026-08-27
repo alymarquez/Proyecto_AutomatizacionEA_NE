@@ -135,6 +135,32 @@ const eliminarEvento = async (id) => {
   return result;
 };
 
+const eliminarTodosEventos = async () => {
+  const response = await fetch(API_URL, {
+    method: "POST",
+    body: JSON.stringify({
+      accion: "eliminar_todos_eventos"
+    })
+  });
+
+  const result = await response.json();
+
+  if (!result.ok) {
+    throw new Error(
+      result.mensaje || result.error || "No se pudieron eliminar los eventos"
+    );
+  }
+
+  // Actualizamos el frontend inmediatamente
+  setDatosGlobales(prev => ({
+    ...prev,
+    eventos: [],
+    calendario: []
+  }));
+
+  return result;
+};
+
 const agregarMinutaLocal = (nuevaMinuta) => {
   setDatosGlobales(prev => ({
     ...prev,
@@ -229,6 +255,7 @@ const editarRegistroTutoriaLocal = (registroModificado) => {
       actualizarEventoLocal,
       editarEvento,
       eliminarEvento,
+      eliminarTodosEventos,
       agregarRegistroTutoriaLocal,
       editarRegistroTutoriaLocal,
       agregarMinutaLocal,
