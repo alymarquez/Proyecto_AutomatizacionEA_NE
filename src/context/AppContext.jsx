@@ -1,4 +1,7 @@
 import { createContext, useState, useEffect, useContext } from "react";
+//import { onAuthStateChanged } from "firebase/auth";
+//import { auth } from "../firebase";
+//import { buscarUsuarioAutorizado } from "../services/AuthServices";
 
 const AppContext = createContext();
 
@@ -14,6 +17,10 @@ export function AppProvider({ children }) {
     paginaMinutas: 1,
   });
   const [loading, setLoading] = useState(true);
+  //const [usuarioFirebase, setUsuarioFirebase] = useState(null);
+  //const [authLoading, setAuthLoading] = useState(true);
+  //const [usuarioAutorizado, setUsuarioAutorizado] = useState(null);
+  //const [autorizacionLoading, setAutorizacionLoading] = useState(true);
 
   const API_URL = "https://script.google.com/macros/s/AKfycbwJpkMBS-3n5GkyOlEd8aOJD4Y_0MF1Ip00weO_jaO17wNZB2Zh-peZv8Vwy5x_pKYd_A/exec";
 
@@ -28,8 +35,7 @@ export function AppProvider({ children }) {
       
       const res = await fetch(`${API_URL}?page=${pagina}`);
       const data = await res.json();
-
-      
+      console.log("USUARIOS:", data.usuarios);
       
       setDatosGlobales({
         eventos: data.eventos || [],
@@ -107,6 +113,26 @@ const editarEvento = async (datos) => {
   return result;
 };
 
+const eliminarEvento = async (id) => {
+  const response = await fetch(API_URL, {
+    method: "POST",
+    body: JSON.stringify({
+      accion: "eliminar_evento",
+      id
+    })
+  });
+
+  const result = await response.json();
+
+  if (!result.ok) {
+    throw new Error(result.mensaje || result.error || "No se pudo eliminar el evento");
+  }
+
+  await refreshDatos(true);
+
+  return result;
+};
+
 const agregarMinutaLocal = (nuevaMinuta) => {
   setDatosGlobales(prev => ({
     ...prev,
@@ -125,18 +151,60 @@ const actualizarMinutaLocal = (minutaActualizada) => {
   }));
 };
 
+/*useEffect(() => {
+  const unsubscribe = onAuthStateChanged(auth, (usuario) => {
+    setUsuarioFirebase(usuario);
+    setAuthLoading(false);
+
+    if (usuario) {
+      console.log("Usuario autenticado:", usuario.email);
+    } else {
+      console.log("No hay usuario autenticado");
+    }
+  });
+
+  return () => unsubscribe();
+}, []);*/
+
+/*useEffect(() => {
+  if (authLoading || loading) {
+    return;
+  }
+
+  setAutorizacionLoading(true);
+
+  if (!usuarioFirebase) {
+    setUsuarioAutorizado(null);
+    setAutorizacionLoading(false);
+    return;
+  }
+
+  const usuarioEncontrado = buscarUsuarioAutorizado(
+    usuarioFirebase,
+    datosGlobales.usuarios
+  );
+  console.log("USUARIO AUTORIZADO:", usuarioEncontrado);
+
+  setUsuarioAutorizado(usuarioEncontrado);
+  setAutorizacionLoading(false);
+}, [usuarioFirebase, authLoading, loading, datosGlobales.usuarios]);*/
 
   return (
     <AppContext.Provider value={{ 
       ...datosGlobales, 
       loading, 
-      API_URL, 
+      /*authLoading,
+      usuarioFirebase,
+      usuarioAutorizado,
+      autorizacionLoading,*/
+      API_URL,
       refreshDatos,
       agregarTareaLocal,
       editarTareaLocal,
       eliminarTareaLocal,
       actualizarEventoLocal,
       editarEvento,
+      eliminarEvento,
       agregarMinutaLocal,
       actualizarMinutaLocal
     }}>

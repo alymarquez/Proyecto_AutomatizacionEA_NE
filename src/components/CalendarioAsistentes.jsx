@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { useApp } from "../context/AppContext";
+import { useAuthorization } from "../context/AuthorizationContext";
 import AddEvento from "../forms/AddEvento";
 import EditEvento from "../forms/EditEvento";
+import Login from "../pages/Login";
 
 import {
   CalendarDays,
@@ -38,7 +40,7 @@ function CalendarioAsistentes() {
     refreshDatos 
   } = useApp();
 
-  
+  const { autorizado } = useAuthorization();
 
   const [isSyncing, setIsSyncing] = useState(false);
   
@@ -48,6 +50,7 @@ function CalendarioAsistentes() {
   const [showModal, setShowModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [eventoEditar, setEventoEditar] = useState(null);
+  const [showLogin, setShowLogin] = useState(false);
 
   // Botón manual de sincronizar
   const handleSincronizarManual = async () => {
@@ -187,7 +190,14 @@ function CalendarioAsistentes() {
             </button>
 
             <button 
-              onClick={() => setShowModal(true)}
+              //onClick={() => setShowModal(true)}
+              onClick={() => {
+                if (autorizado) {
+                  setShowModal(true);
+                } else {
+                  setShowLogin(true);
+                }
+              }}
               className="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-3.5 py-2 rounded-lg transition shadow-xs flex items-center gap-1.5 active:scale-95"
             >
               <Plus className="w-4 h-4" />
@@ -305,9 +315,17 @@ function CalendarioAsistentes() {
                           </span>
                           
                           <button
-                            onClick={() => {
+                            /*onClick={() => {
                               setEventoEditar(ev);
                               setShowEditModal(true);
+                            }}*/
+                            onClick={() => {
+                              if (autorizado) {
+                                setEventoEditar(ev);
+                                setShowEditModal(true);
+                              } else {
+                                setShowLogin(true);
+                              }
                             }}
                             title="Editar evento"
                             className="p-1 bg-white hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 border border-slate-200/60 hover:border-indigo-200 rounded-lg shadow-3xs transition active:scale-90"
@@ -391,6 +409,11 @@ function CalendarioAsistentes() {
           setShowEditModal(false);
         }}
       />
+      {showLogin && (
+        <Login
+          onClose={() => setShowLogin(false)}
+        />
+      )}
     </div>
   );
 }

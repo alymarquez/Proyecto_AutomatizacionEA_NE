@@ -2,10 +2,15 @@ import CalendarioAsistentes from "../components/CalendarioAsistentes";
 import { useApp } from "../context/AppContext";
 import { Sparkles, AlertTriangle } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import Login from "./Login";
+import { useAuthorization } from "../context/AuthorizationContext";
 
 function Home() {
   const { tareas, loading } = useApp();
 
+  const [showModal, setShowModal] = useState(false);
+  const { usuarioAutorizado, autorizado, rol, tieneRol } = useAuthorization();
   // Filtramos tareas críticas
   const tareasCriticas = tareas.filter((tarea) => {
     if (tarea.columna === "completado") return false;
@@ -42,6 +47,7 @@ function Home() {
             <h1 className="text-xl md:text-3xl font-black tracking-tight bg-clip-text bg-gradient-to-r from-white via-slate-100 to-indigo-100">
               ¡Hola, equipo de estudiantes asistentes!
             </h1>
+            
             <p className="text-slate-300 text-xs md:text-sm font-medium max-w-xl leading-relaxed tracking-tight">
               Página organizativa para el seguimiento, control y acompañamiento
               diario de <strong className="text-indigo-200">NE / CADU</strong>.
@@ -50,47 +56,61 @@ function Home() {
         </div>
       </div>
 
-      {/* SECCIÓN DE ALERTAS URGENTES */}
-      <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 pt-6">
-        {!loading && tareasCriticas.length > 0 && (
-          <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 pt-6">
-            <div className="flex flex-wrap items-center gap-3">
+      {/* SECCIÓN DE ALERTAS URGENTES + LOGIN */}
+        <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 pt-6">
+          <div className="flex flex-wrap items-center gap-3">
+
+          {/* ALERTAS URGENTES */}
+            {!loading && tareasCriticas.length > 0 && (
+            <>
               <div className="flex items-center gap-2 px-3 py-1.5 bg-rose-50 border border-rose-100 rounded-full">
                 <AlertTriangle className="w-3.5 h-3.5 text-rose-500 animate-pulse" />
+
                 <span className="text-[10px] font-black text-rose-700 uppercase tracking-widest">
                   Urgente ({tareasCriticas.length})
                 </span>
               </div>
 
-              {/* Tarjetitas de Tareas */}
-              <div className="flex flex-wrap gap-2">
-                {tareasCriticas.map((tarea) => (
-                  <Link
-                    key={tarea.id_tareas}
-                    to="/tareas"
-                    className="group flex items-center gap-2 px-3 py-1.5 bg-white border border-rose-200 rounded-lg shadow-sm hover:shadow-md hover:border-rose-400 transition-all duration-300"
-                  >
-                    <div className="w-1.5 h-1.5 rounded-full bg-rose-500 group-hover:scale-125 transition-transform" />
+          {/* Tarjetitas de Tareas */}
+            <div className="flex flex-wrap gap-2">
+              {tareasCriticas.map((tarea) => (
+                <Link
+                  key={tarea.id_tareas}
+                  to="/tareas"
+                  className="group flex items-center gap-2 px-3 py-1.5 bg-white border border-rose-200 rounded-lg shadow-sm hover:shadow-md hover:border-rose-400 transition-all duration-300"
+                >
+                <div className="w-1.5 h-1.5 rounded-full bg-rose-500 group-hover:scale-125 transition-transform" />
 
-                    <span className="text-[10px] font-bold text-rose-900">
-                      {tarea.titulo}
-                    </span>
+                  <span className="text-[10px] font-bold text-rose-900">
+                    {tarea.titulo}
+                  </span>
 
-                    <span className="text-[8px] font-black text-rose-300 uppercase ml-1 pl-2 border-l border-rose-100">
-                      #{tarea.id_tareas}
-                    </span>
+                  <span className="text-[8px] font-black text-rose-300 uppercase ml-1 pl-2 border-l border-rose-100">
+                    #{tarea.id_tareas}
+                  </span>
                   </Link>
-                ))}
-              </div>
+              ))}
             </div>
+            </>
+          )}
+
+          {/* LOGIN */}
+            <button
+              onClick={() => setShowModal(true)}
+              className="ml-auto bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-3.5 py-2 rounded-lg transition shadow-xs flex items-center gap-1.5 active:scale-95"
+            >
+              <span>Login</span>
+            </button>
           </div>
-        )}
-      </div>
+        </div>
 
       {/* CALENDARIO */}
       <main className="py-6 flex-1">
         <CalendarioAsistentes />
       </main>
+      {showModal && (
+        <Login onClose={() => setShowModal(false)} />
+      )}
     </div>
   );
 }

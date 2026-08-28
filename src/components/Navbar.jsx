@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useAuth } from "../context/AuthContext";
+import Login from "../pages/Login";
 import { Link, useLocation } from "react-router-dom";
 import logo from "../assets/logone.png";
 import { 
@@ -11,12 +13,24 @@ import {
   Kanban,
   UserCog,
 } from "lucide-react";
+import { useAuthorization } from "../context/AuthorizationContext";
 
 function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const location = useLocation();
+  const { tieneRol } = useAuthorization();
+
+  const { usuarioFirebase } = useAuth();
+  const [showLogin, setShowLogin] = useState(false);
 
   const isActive = (path) => location.pathname === path;
+
+  const handleProtectedClick = (e) => {
+    if (!usuarioFirebase) {
+      e.preventDefault();
+      setShowLogin(true);
+    }
+  };
 
   const linkStyles = (path) => `
     flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black tracking-tight transition duration-200 border
@@ -35,6 +49,7 @@ function Navbar() {
   `;
 
   return (
+    <>
     <nav className="sticky top-0 bg-white/80 backdrop-blur-md shadow-2xs relative z-50">
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
@@ -66,30 +81,32 @@ function Navbar() {
               <span>Inicio</span>
             </Link>
 
-            <Link to="/tareas" className={linkStyles("/tareas")}>
+            <Link to="/tareas" className={linkStyles("/tareas")} onClick={handleProtectedClick}>
               <Kanban className="w-3.5 h-3.5 shrink-0" />
               <span>Tareas</span>
             </Link>
 
-            <Link to="/tutorias" className={linkStyles("/tutorias")}>
+            <Link to="/tutorias" className={linkStyles("/tutorias")} onClick={handleProtectedClick}>
               <BookOpen className="w-3.5 h-3.5 shrink-0" />
               <span>Tutorías</span>
             </Link>
 
-            <Link to="/comisiones" className={linkStyles("/comisiones")}>
+            <Link to="/comisiones" className={linkStyles("/comisiones")} onClick={handleProtectedClick}>
               <Users2 className="w-3.5 h-3.5 shrink-0" />
               <span>Comisiones</span>
             </Link>
 
-            <Link to="/minutas" className={linkStyles("/minutas")}>
+            <Link to="/minutas" className={linkStyles("/minutas")} onClick={handleProtectedClick}>
               <ClipboardList className="w-3.5 h-3.5 shrink-0" />
               <span>Minutas</span>
             </Link>
 
-            <Link to="/admin" className={linkStyles("/admin")}>
-              <UserCog className="w-3.5 h-3.5 shrink-0" />
-              <span>Admin</span>
-            </Link>
+            {tieneRol("Administrador") && (
+              <Link to="/admin" className={linkStyles("/admin")}>
+                <UserCog className="w-3.5 h-3.5 shrink-0" />
+                <span>Admin</span>
+              </Link>
+)}
           </div>
 
           {/* BOTÓN HAMBURGUESA MOBILE */}
@@ -121,7 +138,10 @@ function Navbar() {
             <Link
               to="/tareas"
               className={mobileLinkStyles("/tareas")}
-              onClick={() => setMenuOpen(false)}
+              onClick={(e) => {
+                handleProtectedClick(e);
+                if (usuarioFirebase) setMenuOpen(false);
+              }}
             >
               <Kanban className="w-4 h-4 text-slate-400 shrink-0" />
               <span>Tareas</span>
@@ -130,7 +150,10 @@ function Navbar() {
             <Link
               to="/tutorias"
               className={mobileLinkStyles("/tutorias")}
-              onClick={() => setMenuOpen(false)}
+              onClick={(e) => {
+                handleProtectedClick(e);
+                if (usuarioFirebase) setMenuOpen(false);
+              }}
             >
               <BookOpen className="w-4 h-4 text-slate-400 shrink-0" />
               <span>Tutorías</span>
@@ -139,7 +162,10 @@ function Navbar() {
             <Link
               to="/comisiones"
               className={mobileLinkStyles("/comisiones")}
-              onClick={() => setMenuOpen(false)}
+              onClick={(e) => {
+                handleProtectedClick(e);
+                if (usuarioFirebase) setMenuOpen(false);
+              }}
             >
               <Users2 className="w-4 h-4 text-slate-400 shrink-0" />
               <span>Comisiones</span>
@@ -148,11 +174,25 @@ function Navbar() {
             <Link
               to="/minutas"
               className={mobileLinkStyles("/minutas")}
-              onClick={() => setMenuOpen(false)}
+              onClick={(e) => {
+                handleProtectedClick(e);
+                if (usuarioFirebase) setMenuOpen(false);
+              }}
             >
               <ClipboardList className="w-4 h-4 text-slate-400 shrink-0" />
               <span>Minutas</span>
             </Link>
+
+            {tieneRol("Administrador") && (
+              <Link
+                to="/admin"
+                className={mobileLinkStyles("/admin")}
+                onClick={() => setMenuOpen(false)}
+              >
+                <UserCog className="w-4 h-4 text-slate-400 shrink-0" />
+                <span>Admin</span>
+              </Link>
+            )}
 
           </div>
         </div>
@@ -160,8 +200,14 @@ function Navbar() {
 
       {/* DETALLE ESTÉTICO ABAJO */}
       <div className="h-[3px] w-full bg-gradient-to-r from-slate-950 via-indigo-600 to-indigo-950" />
-
+      
     </nav>
+    {showLogin && (
+        <Login
+          onClose={() => setShowLogin(false)}
+        />
+      )}
+    </>
   );
 }
 
