@@ -8,6 +8,8 @@ import {
   Archive,
   RotateCcw,
   Trash2,
+  User,
+  FilterX,
 } from "lucide-react";
 import ModalTarea from "../forms/ModalTarea";
 
@@ -53,6 +55,9 @@ function TareasTablero() {
   const [isModalOpen, setModalOpen] = useState(false);
   const [tareaSeleccionada, setTareaSeleccionada] = useState(null);
   const [verArchivados, setVerArchivados] = useState(false);
+
+  // ESTADO PARA FILTRO POR ASISTENTE
+  const [asistenteFiltroId, setAsistenteFiltroId] = useState("todos");
 
   // AUTO-REFRESH SILENCIOSO
   useEffect(() => {
@@ -192,7 +197,25 @@ function TareasTablero() {
     return `${day}/${month}/${year.slice(-2)}`;
   };
 
-  const tareasArchivadas = tareas.filter((t) => t.columna === "archivado");
+  // LÓGICA DE FILTRADO GLOBAL DE TAREAS
+  const tareasFiltradasBase = tareas.filter((t) => {
+    if (asistenteFiltroId === "todos") return true;
+
+    const idsAsignados = t.asistente_ids
+      ? String(t.asistente_ids)
+          .split(";")
+          .map((id) => id.trim())
+          .filter(Boolean)
+      : [];
+
+    return idsAsignados.includes(String(asistenteFiltroId));
+  });
+
+  const tareasArchivadas = tareasFiltradasBase.filter(
+    (t) => t.columna === "archivado"
+  );
+
+  const asistentesLista = usuarios.filter((u) => u.rol === "asistente");
 
   if (loading && tareas.length === 0) {
     return (
@@ -208,45 +231,97 @@ function TareasTablero() {
   return (
     <div className="p-4 sm:p-6 max-w-7xl mx-auto w-full flex flex-col flex-1 bg-slate-50/30 rounded-3xl border border-slate-100">
       {/* Header del Tablero */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200/60 pb-6 mb-6">
-        <div className="flex items-center gap-3.5">
-          <div className="p-2.5 bg-white text-slate-800 rounded-2xl border border-slate-200 shadow-xs">
-            <Kanban className="w-5 h-5 text-slate-700" />
+      <div className="flex flex-col gap-4 border-b border-slate-200/60 pb-6 mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="p-2.5 bg-white text-slate-800 rounded-2xl border border-slate-200 shadow-xs">
+              <Kanban className="w-5 h-5 text-slate-700" />
+            </div>
+            <div>
+              <h1 className="text-xl font-black text-slate-900 tracking-tight leading-none">
+                {verArchivados ? "Tareas Archivadas" : "Tablero tareas"}
+              </h1>
+              <span className="text-[10px] font-bold text-slate-400 tracking-wider uppercase mt-1.5 block">
+                Gestión Interna Asistentes
+              </span>
+            </div>
           </div>
-          <div>
-            <h1 className="text-xl font-black text-slate-900 tracking-tight leading-none">
-              {verArchivados ? "Tareas Archivadas" : "Tablero tareas"}
-            </h1>
-            <span className="text-[10px] font-bold text-slate-400 tracking-wider uppercase mt-1.5 block">
-              Gestión Interna Asistentes
-            </span>
+
+          <div className="flex items-center gap-2">
+            {/* Botón Ver Archivados */}
+            <button
+              onClick={() => setVerArchivados(!verArchivados)}
+              className={`flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-bold transition border cursor-pointer ${
+                verArchivados
+                  ? "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100"
+                  : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100"
+              }`}
+            >
+              <Archive className="w-4 h-4 text-amber-600" />
+              <span>
+                {verArchivados
+                  ? "Ver Tablero"
+                  : `Archivados (${tareasArchivadas.length})`}
+              </span>
+            </button>
+
+            {!verArchivados && (
+              <button
+                onClick={abrirModalNuevaTarea}
+                className="flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition shadow-xs hover:shadow-md active:scale-95 cursor-pointer"
+              >
+                <Plus className="w-4 h-4" /> Nueva Tarea
+              </button>
+            )}
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          {/* Botón Ver Archivados */}
+        {/* Barra de Filtro por Asistente */}
+        <div className="flex items-center gap-2 overflow-x-auto pt-2 pb-1 custom-scrollbar">
+          <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider shrink-0 mr-1 flex items-center gap-1">
+            <User className="w-3 h-3" /> Filtrar por:
+          </span>
+
           <button
-            onClick={() => setVerArchivados(!verArchivados)}
-            className={`flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-bold transition border cursor-pointer ${
-              verArchivados
-                ? "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100"
-                : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100"
+            onClick={() => setAsistenteFiltroId("todos")}
+            className={`px-3 py-1.5 rounded-xl text-[11px] font-bold transition shrink-0 cursor-pointer border ${
+              asistenteFiltroId === "todos"
+                ? "bg-slate-900 text-white border-slate-900 shadow-3xs"
+                : "bg-white text-slate-600 border-slate-200 hover:bg-slate-100"
             }`}
           >
-            <Archive className="w-4 h-4 text-amber-600" />
-            <span>
-              {verArchivados
-                ? "Ver Tablero"
-                : `Archivados (${tareasArchivadas.length})`}
-            </span>
+            Todos
           </button>
 
-          {!verArchivados && (
+          {asistentesLista.map((asistente) => {
+            const isSelected =
+              String(asistenteFiltroId) === String(asistente.id_usuarios);
+            return (
+              <button
+                key={asistente.id_usuarios}
+                onClick={() =>
+                  setAsistenteFiltroId(
+                    isSelected ? "todos" : asistente.id_usuarios
+                  )
+                }
+                className={`px-3 py-1.5 rounded-xl text-[11px] font-bold transition shrink-0 cursor-pointer border flex items-center gap-1.5 ${
+                  isSelected
+                    ? "bg-indigo-600 text-white border-indigo-600 shadow-3xs"
+                    : "bg-white text-slate-600 border-slate-200 hover:bg-slate-100"
+                }`}
+              >
+                <span>{asistente.nombre.split(" ")[0]}</span>
+              </button>
+            );
+          })}
+
+          {asistenteFiltroId !== "todos" && (
             <button
-              onClick={abrirModalNuevaTarea}
-              className="flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition shadow-xs hover:shadow-md active:scale-95 cursor-pointer"
+              onClick={() => setAsistenteFiltroId("todos")}
+              className="p-1.5 text-slate-400 hover:text-rose-600 transition cursor-pointer"
+              title="Limpiar filtro"
             >
-              <Plus className="w-4 h-4" /> Nueva Tarea
+              <FilterX className="w-4 h-4" />
             </button>
           )}
         </div>
@@ -258,7 +333,7 @@ function TareasTablero() {
           {tareasArchivadas.length === 0 ? (
             <div className="h-64 border border-dashed border-slate-300/60 rounded-xl flex items-center justify-center p-4 text-center bg-slate-50/20">
               <p className="text-[10px] font-black text-slate-400/70 tracking-wider uppercase">
-                No hay tareas en el archivo
+                No hay tareas archivadas para esta selección
               </p>
             </div>
           ) : (
@@ -303,7 +378,6 @@ function TareasTablero() {
                       </p>
                     </div>
 
-                    {/* Botones de acción en la tarjeta archivada */}
                     <div className="flex items-center justify-between pt-2.5 border-t border-slate-900/5">
                       <button
                         onClick={() => handleDesarchivar(tarea)}
@@ -331,8 +405,7 @@ function TareasTablero() {
         /* Columnas Kanban */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 flex-1 items-start">
           {COLUMNAS.map((col) => {
-            // Filtrar únicamente tareas activas (excluir archivados)
-            const tareasFiltradas = tareas.filter(
+            const tareasFiltradas = tareasFiltradasBase.filter(
               (t) => t.columna === col.id
             );
 
