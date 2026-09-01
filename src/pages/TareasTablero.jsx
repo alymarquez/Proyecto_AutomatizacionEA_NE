@@ -1,6 +1,14 @@
 import { useState, useEffect } from "react";
 import { useApp } from "../context/AppContext";
-import { Kanban, Plus, Clock, Loader2 } from "lucide-react";
+import {
+  Kanban,
+  Plus,
+  Clock,
+  Loader2,
+  Archive,
+  RotateCcw,
+  Trash2,
+} from "lucide-react";
 import ModalTarea from "../forms/ModalTarea";
 
 const COLUMNAS = [
@@ -44,6 +52,7 @@ function TareasTablero() {
 
   const [isModalOpen, setModalOpen] = useState(false);
   const [tareaSeleccionada, setTareaSeleccionada] = useState(null);
+  const [verArchivados, setVerArchivados] = useState(false);
 
   // AUTO-REFRESH SILENCIOSO
   useEffect(() => {
@@ -77,7 +86,9 @@ function TareasTablero() {
   const handleDrop = async (e, nuevaColumna) => {
     e.preventDefault();
     const tareaId = e.dataTransfer.getData("text/plain");
-    const tareaAEditar = tareas.find((t) => String(t.id_tareas) === String(tareaId));
+    const tareaAEditar = tareas.find(
+      (t) => String(t.id_tareas) === String(tareaId)
+    );
 
     if (!tareaAEditar) return;
     if (tareaAEditar.columna === nuevaColumna) return;
@@ -112,6 +123,67 @@ function TareasTablero() {
     }
   };
 
+  const handleDesarchivar = async (tarea) => {
+    const tareaModificada = {
+      ...tarea,
+      columna: "backlog",
+    };
+
+    editarTareaLocal(tareaModificada);
+
+    try {
+      const res = await fetch(API_URL, {
+        method: "POST",
+        body: JSON.stringify({
+          accion: "desarchivar_tarea",
+          id: tarea.id_tareas,
+          columna: "backlog",
+        }),
+      });
+
+      const data = await res.json();
+      if (!data.ok) {
+        throw new Error(data.mensaje || "Error al desarchivar la tarea");
+      }
+
+      refreshDatos(true);
+    } catch (err) {
+      console.error("Error desarchivando tarea:", err);
+      refreshDatos(true);
+    }
+  };
+
+  const handleEliminarDefinitivo = async (id) => {
+    if (
+      !window.confirm(
+        "¿Seguro que querés ELIMINAR definitivamente esta tarea? No se podrá recuperar."
+      )
+    )
+      return;
+
+    eliminarTareaLocal(id);
+
+    try {
+      const res = await fetch(API_URL, {
+        method: "POST",
+        body: JSON.stringify({
+          accion: "eliminar_tarea",
+          id: id,
+        }),
+      });
+
+      const data = await res.json();
+      if (!data.ok) {
+        throw new Error(data.mensaje || "Error al eliminar la tarea");
+      }
+
+      refreshDatos(true);
+    } catch (err) {
+      console.error("Error al eliminar la tarea:", err);
+      refreshDatos(true);
+    }
+  };
+
   const formatearFecha = (fechaStr) => {
     if (!fechaStr) return "Sin límite";
     const fechaLimpia = String(fechaStr).split("T")[0];
@@ -119,6 +191,8 @@ function TareasTablero() {
     if (!year || !month || !day) return "Sin límite";
     return `${day}/${month}/${year.slice(-2)}`;
   };
+
+  const tareasArchivadas = tareas.filter((t) => t.columna === "archivado");
 
   if (loading && tareas.length === 0) {
     return (
@@ -141,7 +215,7 @@ function TareasTablero() {
           </div>
           <div>
             <h1 className="text-xl font-black text-slate-900 tracking-tight leading-none">
-              Tablero tareas
+              {verArchivados ? "Tareas Archivadas" : "Tablero tareas"}
             </h1>
             <span className="text-[10px] font-bold text-slate-400 tracking-wider uppercase mt-1.5 block">
               Gestión Interna Asistentes
@@ -149,198 +223,307 @@ function TareasTablero() {
           </div>
         </div>
 
-        <button
-          onClick={abrirModalNuevaTarea}
-          className="flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition shadow-xs hover:shadow-md active:scale-95 cursor-pointer"
-        >
-          <Plus className="w-4 h-4" /> Nueva Tarea
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Botón Ver Archivados */}
+          <button
+            onClick={() => setVerArchivados(!verArchivados)}
+            className={`flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-bold transition border cursor-pointer ${
+              verArchivados
+                ? "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100"
+                : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100"
+            }`}
+          >
+            <Archive className="w-4 h-4 text-amber-600" />
+            <span>
+              {verArchivados
+                ? "Ver Tablero"
+                : `Archivados (${tareasArchivadas.length})`}
+            </span>
+          </button>
+
+          {!verArchivados && (
+            <button
+              onClick={abrirModalNuevaTarea}
+              className="flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition shadow-xs hover:shadow-md active:scale-95 cursor-pointer"
+            >
+              <Plus className="w-4 h-4" /> Nueva Tarea
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Columnas Kanban */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 flex-1 items-start">
-        {COLUMNAS.map((col) => {
-          const tareasFiltradas = tareas.filter((t) => t.columna === col.id);
+      {/* Renderizado condicional: Tablero Kanban o Sección de Archivados */}
+      {verArchivados ? (
+        <div className="flex-1 bg-slate-100/40 border border-slate-200/40 rounded-2xl p-4 backdrop-blur-3xs min-h-[550px]">
+          {tareasArchivadas.length === 0 ? (
+            <div className="h-64 border border-dashed border-slate-300/60 rounded-xl flex items-center justify-center p-4 text-center bg-slate-50/20">
+              <p className="text-[10px] font-black text-slate-400/70 tracking-wider uppercase">
+                No hay tareas en el archivo
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {tareasArchivadas.map((tarea) => {
+                const postItColors =
+                  tarea.prioridad === "alta"
+                    ? "bg-[#fff1f2] border-rose-200 hover:border-rose-300 text-rose-900 shadow-rose-100/50"
+                    : tarea.prioridad === "baja"
+                    ? "bg-[#f0fdf4] border-emerald-200 hover:border-emerald-300 text-emerald-900 shadow-emerald-100/40"
+                    : "bg-[#fefce8] border-amber-200 hover:border-amber-300 text-amber-900 shadow-amber-100/50";
 
-          return (
-            <div
-              key={col.id}
-              onDragOver={handleDragOver}
-              onDrop={(e) => handleDrop(e, col.id)}
-              className="bg-slate-100/40 border border-slate-200/40 rounded-2xl p-3 flex flex-col min-h-[550px] backdrop-blur-3xs"
-            >
-              {/* Header de Columna */}
-              <div className="flex items-center justify-between mb-4 px-1">
-                <div className="flex items-center gap-2">
-                  <span className={`w-1.5 h-1.5 rounded-full ${col.dot}`} />
-                  <span className="text-xs font-black text-slate-700 tracking-tight">
-                    {col.titulo}
+                const tagPrioridad =
+                  tarea.prioridad === "alta"
+                    ? "bg-rose-500/10 text-rose-700 border-rose-200/40"
+                    : tarea.prioridad === "baja"
+                    ? "bg-emerald-500/10 text-emerald-700 border-emerald-200/40"
+                    : "bg-amber-500/10 text-amber-700 border-amber-200/40";
+
+                return (
+                  <div
+                    key={tarea.id_tareas}
+                    className={`border p-4 rounded-xl shadow-3xs relative flex flex-col justify-between min-h-[160px] ${postItColors}`}
+                  >
+                    <div>
+                      <div className="flex items-center justify-between mb-2.5">
+                        <span
+                          className={`text-[9px] font-extrabold px-2 py-0.5 rounded border uppercase tracking-wider ${tagPrioridad}`}
+                        >
+                          Prioridad: {tarea.prioridad}
+                        </span>
+                        <span className="text-[10px] font-mono font-bold opacity-40">
+                          #{String(tarea.id_tareas).padStart(3, "0")}
+                        </span>
+                      </div>
+
+                      <h3 className="text-xs font-bold tracking-tight leading-snug mb-1 text-slate-800">
+                        {tarea.titulo}
+                      </h3>
+                      <p className="text-[11px] font-medium opacity-70 leading-relaxed mb-4 line-clamp-2">
+                        {tarea.descripcion}
+                      </p>
+                    </div>
+
+                    {/* Botones de acción en la tarjeta archivada */}
+                    <div className="flex items-center justify-between pt-2.5 border-t border-slate-900/5">
+                      <button
+                        onClick={() => handleDesarchivar(tarea)}
+                        className="flex items-center gap-1 text-[10px] font-black text-indigo-600 hover:text-indigo-800 transition cursor-pointer"
+                      >
+                        <RotateCcw className="w-3 h-3" />
+                        <span>Desarchivar</span>
+                      </button>
+
+                      <button
+                        onClick={() => handleEliminarDefinitivo(tarea.id_tareas)}
+                        className="p-1 text-rose-600 hover:bg-rose-100/80 rounded-lg transition cursor-pointer"
+                        title="Eliminar definitivamente"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      ) : (
+        /* Columnas Kanban */
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 flex-1 items-start">
+          {COLUMNAS.map((col) => {
+            // Filtrar únicamente tareas activas (excluir archivados)
+            const tareasFiltradas = tareas.filter(
+              (t) => t.columna === col.id
+            );
+
+            return (
+              <div
+                key={col.id}
+                onDragOver={handleDragOver}
+                onDrop={(e) => handleDrop(e, col.id)}
+                className="bg-slate-100/40 border border-slate-200/40 rounded-2xl p-3 flex flex-col min-h-[550px] backdrop-blur-3xs"
+              >
+                {/* Header de Columna */}
+                <div className="flex items-center justify-between mb-4 px-1">
+                  <div className="flex items-center gap-2">
+                    <span className={`w-1.5 h-1.5 rounded-full ${col.dot}`} />
+                    <span className="text-xs font-black text-slate-700 tracking-tight">
+                      {col.titulo}
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-bold text-slate-400 bg-white border border-slate-200/60 px-2 py-0.5 rounded-md shadow-3xs">
+                    {tareasFiltradas.length}
                   </span>
                 </div>
-                <span className="text-[10px] font-bold text-slate-400 bg-white border border-slate-200/60 px-2 py-0.5 rounded-md shadow-3xs">
-                  {tareasFiltradas.length}
-                </span>
-              </div>
 
-              {/* Contenedor de Tarjetas */}
-              <div className="space-y-3 flex-1 overflow-y-auto pb-4">
-                {tareasFiltradas.map((tarea) => {
-                  const postItColors =
-                    tarea.prioridad === "alta"
-                      ? "bg-[#fff1f2] border-rose-200 hover:border-rose-300 text-rose-900 shadow-rose-100/50"
-                      : tarea.prioridad === "baja"
+                {/* Contenedor de Tarjetas */}
+                <div className="space-y-3 flex-1 overflow-y-auto pb-4">
+                  {tareasFiltradas.map((tarea) => {
+                    const postItColors =
+                      tarea.prioridad === "alta"
+                        ? "bg-[#fff1f2] border-rose-200 hover:border-rose-300 text-rose-900 shadow-rose-100/50"
+                        : tarea.prioridad === "baja"
                         ? "bg-[#f0fdf4] border-emerald-200 hover:border-emerald-300 text-emerald-900 shadow-emerald-100/40"
                         : "bg-[#fefce8] border-amber-200 hover:border-amber-300 text-amber-900 shadow-amber-100/50";
 
-                  const tagPrioridad =
-                    tarea.prioridad === "alta"
-                      ? "bg-rose-500/10 text-rose-700 border-rose-200/40"
-                      : tarea.prioridad === "baja"
+                    const tagPrioridad =
+                      tarea.prioridad === "alta"
+                        ? "bg-rose-500/10 text-rose-700 border-rose-200/40"
+                        : tarea.prioridad === "baja"
                         ? "bg-emerald-500/10 text-emerald-700 border-emerald-200/40"
                         : "bg-amber-500/10 text-amber-700 border-amber-200/40";
 
-                  let esUrgentePorFecha = false;
-                  let mensajeVencimiento = "";
+                    let esUrgentePorFecha = false;
+                    let mensajeVencimiento = "";
 
-                  if (tarea.fecha_limite && tarea.columna !== "completado") {
-                    const hoy = new Date();
-                    hoy.setHours(0, 0, 0, 0);
+                    if (
+                      tarea.fecha_limite &&
+                      tarea.columna !== "completado"
+                    ) {
+                      const hoy = new Date();
+                      hoy.setHours(0, 0, 0, 0);
 
-                    const fechaLimpia = String(tarea.fecha_limite).split("T")[0];
-                    const partes = fechaLimpia.split("-");
-                    
-                    if (partes.length === 3) {
-                      const fechaLimite = new Date(
-                        parseInt(partes[0], 10),
-                        parseInt(partes[1], 10) - 1,
-                        parseInt(partes[2], 10)
-                      );
-                      fechaLimite.setHours(0, 0, 0, 0);
+                      const fechaLimpia = String(tarea.fecha_limite).split(
+                        "T"
+                      )[0];
+                      const partes = fechaLimpia.split("-");
 
-                      const diferenciaDias = Math.round(
-                        (fechaLimite.getTime() - hoy.getTime()) / 86400000
-                      );
+                      if (partes.length === 3) {
+                        const fechaLimite = new Date(
+                          parseInt(partes[0], 10),
+                          parseInt(partes[1], 10) - 1,
+                          parseInt(partes[2], 10)
+                        );
+                        fechaLimite.setHours(0, 0, 0, 0);
 
-                      if (diferenciaDias < 0) {
-                        esUrgentePorFecha = true;
-                        mensajeVencimiento = "Vencida";
-                      } else if (diferenciaDias === 0) {
-                        esUrgentePorFecha = true;
-                        mensajeVencimiento = "Hoy";
-                      } else if (diferenciaDias === 1) {
-                        esUrgentePorFecha = true;
-                        mensajeVencimiento = "Mañana";
+                        const diferenciaDias = Math.round(
+                          (fechaLimite.getTime() - hoy.getTime()) / 86400000
+                        );
+
+                        if (diferenciaDias < 0) {
+                          esUrgentePorFecha = true;
+                          mensajeVencimiento = "Vencida";
+                        } else if (diferenciaDias === 0) {
+                          esUrgentePorFecha = true;
+                          mensajeVencimiento = "Hoy";
+                        } else if (diferenciaDias === 1) {
+                          esUrgentePorFecha = true;
+                          mensajeVencimiento = "Mañana";
+                        }
                       }
                     }
-                  }
 
-                  return (
-                    <div
-                      key={tarea.id_tareas}
-                      draggable
-                      onDragStart={(e) => handleDragStart(e, tarea.id_tareas)}
-                      onClick={() => abrirModalEditarTarea(tarea)}
-                      className={`border p-4 rounded-xl shadow-3xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs cursor-grab active:cursor-grabbing select-none relative overflow-hidden flex flex-col justify-between min-h-[140px] ${postItColors} ${
-                        esUrgentePorFecha ? "ring-1 ring-rose-400" : ""
-                      }`}
-                    >
-                      {/* Badge Vencimiento */}
-                      {esUrgentePorFecha && (
-                        <div className="absolute top-2 right-2 bg-rose-600 text-white font-extrabold text-[8px] tracking-wide px-1.5 py-0.5 rounded-md uppercase shadow-xs">
-                          {mensajeVencimiento}
-                        </div>
-                      )}
-
-                      <div>
-                        <div className="flex items-center justify-between mb-2.5">
-                          <span
-                            className={`text-[9px] font-extrabold px-2 py-0.5 rounded border uppercase tracking-wider ${tagPrioridad}`}
-                          >
-                            Prioridad: {tarea.prioridad}
-                          </span>
-                          {!esUrgentePorFecha && (
-                            <span className="text-[10px] font-mono font-bold opacity-40">
-                              #{String(tarea.id_tareas).padStart(3, "0")}
-                            </span>
-                          )}
-                        </div>
-
-                        <h3 className="text-xs font-bold tracking-tight leading-snug mb-1 text-slate-800 pr-10">
-                          {tarea.titulo}
-                        </h3>
-                        <p className="text-[11px] font-medium opacity-70 leading-relaxed mb-4 line-clamp-2">
-                          {tarea.descripcion}
-                        </p>
-                      </div>
-
-                      {/* Footer */}
+                    return (
                       <div
-                        className="flex items-center justify-between pt-2.5 border-t border-slate-900/5 text-[10px] font-bold text-slate-400"
-                        onClick={(e) => e.stopPropagation()}
+                        key={tarea.id_tareas}
+                        draggable
+                        onDragStart={(e) =>
+                          handleDragStart(e, tarea.id_tareas)
+                        }
+                        onClick={() => abrirModalEditarTarea(tarea)}
+                        className={`border p-4 rounded-xl shadow-3xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs cursor-grab active:cursor-grabbing select-none relative overflow-hidden flex flex-col justify-between min-h-[140px] ${postItColors} ${
+                          esUrgentePorFecha ? "ring-1 ring-rose-400" : ""
+                        }`}
                       >
-                        <div className="flex items-center gap-1.5 text-slate-500/80">
-                          <Clock className="w-3 h-3 opacity-60" />
-                          <span className="font-mono text-[9px] font-bold tracking-tight">
-                            {formatearFecha(tarea.fecha_limite)}
-                          </span>
+                        {/* Badge Vencimiento */}
+                        {esUrgentePorFecha && (
+                          <div className="absolute top-2 right-2 bg-rose-600 text-white font-extrabold text-[8px] tracking-wide px-1.5 py-0.5 rounded-md uppercase shadow-xs">
+                            {mensajeVencimiento}
+                          </div>
+                        )}
+
+                        <div>
+                          <div className="flex items-center justify-between mb-2.5">
+                            <span
+                              className={`text-[9px] font-extrabold px-2 py-0.5 rounded border uppercase tracking-wider ${tagPrioridad}`}
+                            >
+                              Prioridad: {tarea.prioridad}
+                            </span>
+                            {!esUrgentePorFecha && (
+                              <span className="text-[10px] font-mono font-bold opacity-40">
+                                #{String(tarea.id_tareas).padStart(3, "0")}
+                              </span>
+                            )}
+                          </div>
+
+                          <h3 className="text-xs font-bold tracking-tight leading-snug mb-1 text-slate-800 pr-10">
+                            {tarea.titulo}
+                          </h3>
+                          <p className="text-[11px] font-medium opacity-70 leading-relaxed mb-4 line-clamp-2">
+                            {tarea.descripcion}
+                          </p>
                         </div>
 
-                        {/* Encargados */}
-                        <div className="flex flex-wrap gap-1 max-w-[60%] justify-end">
-                          {(() => {
-                            const idsAsignados = tarea.asistente_ids
-                              ? String(tarea.asistente_ids)
-                                  .split(";")
-                                  .map((id) => id.trim())
-                                  .filter(Boolean)
-                              : [];
-                            if (idsAsignados.length === 0) {
-                              return (
-                                <span className="bg-white/60 border border-slate-200/40 px-1.5 py-0.5 rounded-md text-slate-400 font-medium text-[9px]">
-                                  Libre
-                                </span>
-                              );
-                            }
-                            return idsAsignados.map((id) => {
-                              const asistenteObj = usuarios.find(
-                                (a) => String(a.id_usuarios) === String(id)
-                              );
-                              return (
-                                <span
-                                  key={id}
-                                  className="bg-white border border-slate-200 px-1.5 py-0.5 rounded-md text-slate-700 font-bold text-[9px] max-w-[75px] truncate shadow-3xs"
-                                  title={
-                                    asistenteObj ? asistenteObj.nombre : id
-                                  }
-                                >
-                                  <span className="truncate">
-                                    {asistenteObj
-                                      ? asistenteObj.nombre.split(" ")[0]
-                                      : id}
+                        {/* Footer */}
+                        <div
+                          className="flex items-center justify-between pt-2.5 border-t border-slate-900/5 text-[10px] font-bold text-slate-400"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <div className="flex items-center gap-1.5 text-slate-500/80">
+                            <Clock className="w-3 h-3 opacity-60" />
+                            <span className="font-mono text-[9px] font-bold tracking-tight">
+                              {formatearFecha(tarea.fecha_limite)}
+                            </span>
+                          </div>
+
+                          {/* Encargados */}
+                          <div className="flex flex-wrap gap-1 max-w-[60%] justify-end">
+                            {(() => {
+                              const idsAsignados = tarea.asistente_ids
+                                ? String(tarea.asistente_ids)
+                                    .split(";")
+                                    .map((id) => id.trim())
+                                    .filter(Boolean)
+                                : [];
+                              if (idsAsignados.length === 0) {
+                                return (
+                                  <span className="bg-white/60 border border-slate-200/40 px-1.5 py-0.5 rounded-md text-slate-400 font-medium text-[9px]">
+                                    Libre
                                   </span>
-                                </span>
-                              );
-                            });
-                          })()}
+                                );
+                              }
+                              return idsAsignados.map((id) => {
+                                const asistenteObj = usuarios.find(
+                                  (a) =>
+                                    String(a.id_usuarios) === String(id)
+                                );
+                                return (
+                                  <span
+                                    key={id}
+                                    className="bg-white border border-slate-200 px-1.5 py-0.5 rounded-md text-slate-700 font-bold text-[9px] max-w-[75px] truncate shadow-3xs"
+                                    title={
+                                      asistenteObj ? asistenteObj.nombre : id
+                                    }
+                                  >
+                                    <span className="truncate">
+                                      {asistenteObj
+                                        ? asistenteObj.nombre.split(" ")[0]
+                                        : id}
+                                    </span>
+                                  </span>
+                                );
+                              });
+                            })()}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
 
-                {/* Zona de Drop Vacía */}
-                {tareasFiltradas.length === 0 && (
-                  <div className="h-20 border border-dashed border-slate-300/60 rounded-xl flex items-center justify-center p-4 text-center bg-slate-50/20">
-                    <p className="text-[9px] font-black text-slate-400/70 tracking-wider uppercase">
-                      Arrastrá actividades acá
-                    </p>
-                  </div>
-                )}
+                  {/* Zona de Drop Vacía */}
+                  {tareasFiltradas.length === 0 && (
+                    <div className="h-20 border border-dashed border-slate-300/60 rounded-xl flex items-center justify-center p-4 text-center bg-slate-50/20">
+                      <p className="text-[9px] font-black text-slate-400/70 tracking-wider uppercase">
+                        Arrastrá actividades acá
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
 
       <ModalTarea
         isOpen={isModalOpen}
