@@ -176,8 +176,8 @@ function Minutas() {
       {/* HEADER */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200/80 pb-6 mb-6">
         <div className="flex items-center gap-4">
-          <div className="p-3 bg-slate-900 text-white rounded-2xl shadow-sm ring-1 ring-slate-900/10">
-            <ClipboardList className="w-6 h-6 text-indigo-400" />
+          <div className="p-2.5 bg-white text-slate-800 rounded-2xl border border-slate-200 shadow-xs">
+            <ClipboardList className="w-5 h-5 text-indigo-600" />
           </div>
           <div>
             <div className="flex items-center gap-2">
