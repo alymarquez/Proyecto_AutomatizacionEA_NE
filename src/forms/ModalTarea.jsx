@@ -7,6 +7,7 @@ import {
   Check,
   User,
   Users,
+  Archive,
 } from "lucide-react";
 
 function ModalTarea({
@@ -20,6 +21,7 @@ function ModalTarea({
   tareaAEditar = null,
 }) {
   const [enviando, setEnviando] = useState(false);
+  const [archivando, setArchivando] = useState(false);
   const [eliminando, setEliminando] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
@@ -174,8 +176,38 @@ function ModalTarea({
     }
   };
 
+  const handleArchivar = async () => {
+    try {
+      setArchivando(true);
+      const respuesta = await fetch(API_URL, {
+        method: "POST",
+        body: JSON.stringify({
+          accion: "archivar_tarea",
+          id: form.id,
+        }),
+      });
+
+      const data = await respuesta.json();
+      if (data.ok) {
+        onTareaEditada({ ...form, id_tareas: form.id, columna: "archivado" });
+        onClose();
+      } else {
+        alert("Error al archivar: " + data.mensaje);
+      }
+    } catch (err) {
+      console.error("Error al archivar tarea:", err);
+      alert("Error de conexión.");
+    } finally {
+      setArchivando(false);
+    }
+  };
+
   const handleEliminar = async () => {
-    if (!window.confirm("¿Seguro que querés eliminar esta tarea de Trello?"))
+    if (
+      !window.confirm(
+        "¿Seguro que querés eliminar esta tarea definitivamente? No se podrá recuperar.",
+      )
+    )
       return;
 
     try {
@@ -217,7 +249,11 @@ function ModalTarea({
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-50 shrink-0">
           <div className="flex items-center gap-2">
             <div
-              className={`p-1 rounded-lg border ${tareaAEditar ? "bg-amber-50 text-amber-600 border-amber-100" : "bg-indigo-50 text-indigo-600 border-indigo-100"}`}
+              className={`p-1 rounded-lg border ${
+                tareaAEditar
+                  ? "bg-amber-50 text-amber-600 border-amber-100"
+                  : "bg-indigo-50 text-indigo-600 border-indigo-100"
+              }`}
             >
               <Users className="w-4 h-4" />
             </div>
@@ -322,7 +358,11 @@ function ModalTarea({
               >
                 <div className="flex items-center gap-2">
                   <span
-                    className={`w-2 h-2 rounded-full transition-colors ${idsSeleccionados.length > 0 ? "bg-indigo-600" : "bg-slate-300"}`}
+                    className={`w-2 h-2 rounded-full transition-colors ${
+                      idsSeleccionados.length > 0
+                        ? "bg-indigo-600"
+                        : "bg-slate-300"
+                    }`}
                   />
                   <span>
                     {idsSeleccionados.length === 0
@@ -331,7 +371,9 @@ function ModalTarea({
                   </span>
                 </div>
                 <ChevronDown
-                  className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${dropdownOpen ? "rotate-180" : ""}`}
+                  className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${
+                    dropdownOpen ? "rotate-180" : ""
+                  }`}
                 />
               </button>
 
@@ -349,7 +391,9 @@ function ModalTarea({
                       return (
                         <div
                           key={asistente.id_usuarios}
-                          onClick={() => handleAsistenteToggle(asistente.id_usuarios)}
+                          onClick={() =>
+                            handleAsistenteToggle(asistente.id_usuarios)
+                          }
                           className={`flex items-center justify-between px-3 py-2 rounded-lg hover:bg-slate-50/80 cursor-pointer select-none text-xs font-bold transition ${
                             isChecked
                               ? "bg-indigo-50/40 text-indigo-700"
@@ -358,7 +402,9 @@ function ModalTarea({
                         >
                           <div className="flex items-center gap-2 max-w-[80%]">
                             <User
-                              className={`w-3.5 h-3.5 shrink-0 ${isChecked ? "text-indigo-500" : "text-slate-400"}`}
+                              className={`w-3.5 h-3.5 shrink-0 ${
+                                isChecked ? "text-indigo-500" : "text-slate-400"
+                              }`}
                             />
                             <span className="truncate">{asistente.nombre}</span>
                           </div>
@@ -401,19 +447,37 @@ function ModalTarea({
           {/* Footer de Acciones */}
           <div className="pt-3 flex justify-between items-center border-t border-slate-100 gap-2 shrink-0">
             {tareaAEditar ? (
-              <button
-                type="button"
-                onClick={handleEliminar}
-                disabled={enviando || eliminando}
-                className="px-3 py-2 bg-rose-50 text-rose-600 hover:bg-rose-100/80 rounded-xl text-xs font-black transition flex items-center gap-1 cursor-pointer disabled:opacity-50"
-              >
-                {eliminando ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <Trash2 className="w-3.5 h-3.5" />
-                )}
-                <span>Eliminar</span>
-              </button>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={handleArchivar}
+                  disabled={enviando || eliminando || archivando}
+                  className="px-2.5 py-2 bg-amber-50 text-amber-700 hover:bg-amber-100/80 rounded-xl text-xs font-black transition flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                  title="Archivar tarea"
+                >
+                  {archivando ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Archive className="w-3.5 h-3.5" />
+                  )}
+                  <span>Archivar</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleEliminar}
+                  disabled={enviando || eliminando || archivando}
+                  className="px-2.5 py-2 bg-rose-50 text-rose-600 hover:bg-rose-100/80 rounded-xl text-xs font-black transition flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                  title="Eliminar definitivamente"
+                >
+                  {eliminando ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Trash2 className="w-3.5 h-3.5" />
+                  )}
+                  <span>Eliminar</span>
+                </button>
+              </div>
             ) : (
               <div />
             )}
@@ -422,14 +486,14 @@ function ModalTarea({
               <button
                 type="button"
                 onClick={onClose}
-                disabled={enviando || eliminando}
+                disabled={enviando || eliminando || archivando}
                 className="px-4 py-2 border border-slate-200 text-slate-500 rounded-xl text-xs font-black hover:bg-slate-50 transition cursor-pointer"
               >
                 Cancelar
               </button>
               <button
                 type="submit"
-                disabled={enviando || eliminando}
+                disabled={enviando || eliminando || archivando}
                 className="px-4 py-2 bg-slate-900 hover:bg-indigo-600 text-white rounded-xl text-xs font-black transition flex items-center gap-1.5 min-w-[100px] justify-center shadow-3xs cursor-pointer"
               >
                 {enviando ? (
