@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useApp } from "../context/AppContext";
+import * as XLSX from "xlsx";
 import EditResponsablesTutorias from "../forms/EditResponsablesTutorias";
 import {
   MessageSquare,
@@ -16,6 +17,7 @@ import {
   ChevronDown,
   ChevronUp,
   CalendarDays,
+  FileDown,
 } from "lucide-react";
 import RegistroTutoria from "../forms/RegistroTutoriasForm";
 
@@ -229,6 +231,32 @@ function Tutorias() {
     setModalAbierto(true);
   };
 
+  const descargarRegistrosExcel = () => {
+  const datos = registroTutorias.map((registro) => ({
+    Fecha: formatearFechaLegible(registro.fecha),
+    Estudiante: registro.alumno_nombre || "",
+    Comisión: registro.comision || "",
+    Asistentes: obtenerNombresAsistentes(
+      registro.asistentes_ids
+    ).join(", "),
+    "Motivo de consulta": registro.motivo_consulta || "",
+  }));
+
+  const hoja = XLSX.utils.json_to_sheet(datos);
+
+  const libro = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(
+    libro,
+    hoja,
+    "Registro de tutorías"
+  );
+
+  XLSX.writeFile(
+    libro,
+    "Registro_de_tutorias.xlsx"
+  );
+};
+
   const abrirEditorRegistro = (registro) => {
     setRegistroEditando(registro);
     setMostrarFormularioRegistro(true);
@@ -431,22 +459,42 @@ function Tutorias() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <h2 className="text-base font-black text-slate-900 tracking-tight">
-                  Registro de Jornadas de Tutorías
+                  Registro de Tutorías
                 </h2>
                 <p className="text-xs text-slate-400 font-medium">
                   Agrupado por día con detalle de consultas por estudiante.
                 </p>
               </div>
 
-              <button
+              {/*<button
                 onClick={() => {
                   setRegistroEditando(null);
                   setMostrarFormularioRegistro(true);
                 }}
                 className="flex items-center justify-center gap-2 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition shadow-xs active:scale-95 cursor-pointer"
               >
-                + Cargar Consulta
-              </button>
+                + Nuevo Registro
+              </button>*/}
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={descargarRegistrosExcel}
+                  className="flex items-center justify-center gap-2 px-4 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition shadow-xs active:scale-95 cursor-pointer"
+                >
+                  <FileDown className="w-4 h-4" />
+                  Descargar Excel
+                </button>
+
+                <button
+                  onClick={() => {
+                    setRegistroEditando(null);
+                    setMostrarFormularioRegistro(true);
+                  }}
+                  className="flex items-center justify-center gap-2 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition shadow-xs active:scale-95 cursor-pointer"
+                >
+                  + Nuevo Registro
+                </button>
+              </div>
             </div>
 
             {/* BARRA DE FILTROS */}
@@ -458,7 +506,7 @@ function Tutorias() {
                   <User className="w-3 h-3 text-slate-400" /> Asistente:
                 </span>
 
-                <button
+                {/*<button
                   onClick={() => setAsistenteFiltroId("todos")}
                   className={`px-3 py-1.5 rounded-full text-xs font-semibold transition shrink-0 cursor-pointer border ${
                     asistenteFiltroId === "todos"
@@ -489,7 +537,23 @@ function Tutorias() {
                       {asistente.nombre.split(" ")[0]}
                     </button>
                   );
-                })}
+                })}*/}
+                <select
+                  value={asistenteFiltroId}
+                  onChange={(e) => setAsistenteFiltroId(e.target.value)}
+                  className="px-3 py-1.5 rounded-full text-xs font-semibold border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 cursor-pointer outline-none"
+                >
+                  <option value="todos">Todos</option>
+
+                  {asistentesLista.map((asistente) => (
+                    <option
+                      key={asistente.id_usuarios}
+                      value={asistente.id_usuarios}
+                    >
+                      {asistente.nombre.split(" ")[0]}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               {/* CONTROLES DERECHA: FECHA + BÚSQUEDA */}
@@ -531,7 +595,7 @@ function Tutorias() {
           </div>
 
           {/* JORNADAS AGRUPADAS */}
-          {registrosAgrupadosPorFecha.length === 0 ? (
+          {/*{registrosAgrupadosPorFecha.length === 0 ? (
             <div className="bg-white rounded-2xl border border-dashed border-slate-300 p-8 text-center text-slate-400 text-xs font-medium">
               No hay registros que coincidan con los filtros seleccionados.
             </div>
@@ -543,8 +607,9 @@ function Tutorias() {
                 );
                 const estaColapsado = jornadasColapsadas[jornada.fecha];
 
+                
                 return (
-                  <div
+                 <div
                     key={jornada.fecha}
                     className="bg-white border border-slate-200/80 rounded-2xl shadow-2xs overflow-hidden transition"
                   >
@@ -629,11 +694,149 @@ function Tutorias() {
                         ))}
                       </div>
                     )}
+                    
                   </div>
                 );
               })}
             </div>
+          )}*/}
+          {/* JORNADAS AGRUPADAS */}
+{registrosAgrupadosPorFecha.length === 0 ? (
+  <div className="bg-white rounded-2xl border border-dashed border-slate-300 p-8 text-center text-slate-400 text-xs font-medium">
+    No hay registros que coincidan con los filtros seleccionados.
+  </div>
+) : (
+  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 items-start">
+    {registrosAgrupadosPorFecha.map((jornada) => {
+      const nombresAsistentesJornada = obtenerNombresAsistentes(
+        Array.from(jornada.asistentesIds).join(";")
+      );
+
+      const estaColapsado = jornadasColapsadas[jornada.fecha] ?? true;
+
+      return (
+        <div
+          key={jornada.fecha}
+          className="bg-white border border-slate-200/80 rounded-2xl shadow-2xs overflow-hidden transition"
+        >
+          {/* ENCABEZADO */}
+          <div className="bg-slate-50 px-5 py-3.5 border-b border-slate-200/60">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-indigo-50 text-indigo-600 rounded-xl border border-indigo-100">
+                <CalendarDays className="w-4 h-4" />
+              </div>
+
+              <div className="flex items-center gap-2">
+                <h3 className="text-xs font-black text-slate-900 tracking-tight">
+                  Jornada del {jornada.fecha}
+                </h3>
+
+                <span className="text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100 px-2 py-0.5 rounded-full">
+                  {jornada.consultas.length}{" "}
+                  {jornada.consultas.length === 1
+                    ? "consulta"
+                    : "consultas"}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* ASISTENTES */}
+          <div className="p-4">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 mb-2">
+              <Users className="w-3.5 h-3.5 text-slate-400" />
+              Encargado/s de tutoría
+            </div>
+
+            <div className="bg-slate-50 rounded-xl p-3 min-h-[90px] border border-slate-100 flex items-center">
+              {nombresAsistentesJornada.length ? (
+                <div className="flex flex-wrap gap-1.5">
+                  {nombresAsistentesJornada.map((persona) => (
+                    <span
+                      key={`${jornada.fecha}-${persona}`}
+                      className="px-2.5 py-1 bg-white border border-slate-200/80 rounded-lg text-xs font-bold text-slate-700 shadow-2xs"
+                    >
+                      {persona}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <span className="text-xs text-slate-400 italic">
+                  Sin asistentes asignados
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* VER DETALLE / OCULTAR */}
+          <div className="px-4 pb-4">
+            <button
+              onClick={() => toggleJornada(jornada.fecha)}
+              className="w-full flex items-center justify-end gap-1.5 bg-slate-50 px-4 py-3.5 text-xs font-bold text-slate-600 hover:text-slate-900 transition cursor-pointer"
+            >
+              <span>
+                {estaColapsado ? "Ver detalle" : "Ocultar"}
+              </span>
+
+              {estaColapsado ? (
+                <ChevronDown className="w-4 h-4" />
+              ) : (
+                <ChevronUp className="w-4 h-4" />
+              )}
+            </button>
+          </div>
+
+          {/* DETALLE DE CONSULTAS */}
+          {!estaColapsado && (
+            <div className="px-4 pb-4">
+              <div className="border-t border-slate-100">
+                {jornada.consultas.map((consulta) => (
+                  <div
+                    key={consulta.id}
+                    className="py-3.5 border-b border-slate-100 last:border-b-0 flex items-center justify-between gap-4"
+                  >
+                    <div className="space-y-1.5 flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                          <User className="w-3.5 h-3.5 text-slate-400" />
+                          {consulta.alumno_nombre || "Sin Nombre"}
+                        </span>
+
+                        {consulta.comision && (
+                          <span className="text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200/80 px-2 py-0.5 rounded-md">
+                            {consulta.comision}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-start gap-1.5 text-xs text-slate-600">
+                        <MessageSquare className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
+
+                        <p className="font-normal leading-snug">
+                          {consulta.motivo_consulta ||
+                            "Sin motivo registrado"}
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:text-indigo-600 hover:border-indigo-300 transition active:scale-95 cursor-pointer shrink-0"
+                      onClick={() => abrirEditorRegistro(consulta)}
+                      title="Editar esta consulta"
+                    >
+                      <Edit3 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
+        </div>
+      );
+    })}
+  </div>
+)}
         </div>
       )}
 
