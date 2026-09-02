@@ -286,7 +286,7 @@ function Tutorias() {
           }`}
         >
           <ClipboardList className="w-4 h-4 text-slate-400 shrink-0" />
-          Registro de consultas
+          Registro de tutorias
         </button>
       </div>
 
