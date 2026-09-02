@@ -215,7 +215,9 @@ function TareasTablero() {
     (t) => t.columna === "archivado"
   );
 
-  const asistentesLista = usuarios.filter((u) => u.rol === "asistente");
+  const asistentesLista = usuarios.filter(
+    (u) => u.rol === "asistente" || u.rol === "administrador"
+  );
 
   if (loading && tareas.length === 0) {
     return (
